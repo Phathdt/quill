@@ -1,20 +1,16 @@
-/**
- * Toast notification wrapper
- * Using native alert for now - can be replaced with a proper toast library
- */
+import { toast as sonnerToast } from 'sonner'
 
+/**
+ * Toast notification wrapper using Sonner
+ */
 export const toast = {
   success: (message: string) => {
-    console.log('[SUCCESS]', message)
-    // You can replace with sonner or react-hot-toast later
-    alert(`✓ ${message}`)
+    sonnerToast.success(message)
   },
   error: (message: string) => {
-    console.error('[ERROR]', message)
-    alert(`✗ ${message}`)
+    sonnerToast.error(message)
   },
   info: (message: string) => {
-    console.info('[INFO]', message)
-    alert(message)
+    sonnerToast.info(message)
   },
 }

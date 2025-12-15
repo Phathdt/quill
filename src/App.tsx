@@ -1,6 +1,7 @@
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
 import { WelcomePage, WorkspacePage } from '@/pages'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { Toaster } from 'sonner'
 
 function AppContent() {
   useGlobalShortcuts()
@@ -19,6 +20,7 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position='bottom-right' richColors />
       <AppContent />
     </BrowserRouter>
   )
