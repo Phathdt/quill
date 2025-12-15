@@ -72,12 +72,31 @@ export function DataGrid() {
   const { isTableMode, editingState, startEditing, commitCellEdit, cancelEditing, savePendingChanges, discardPendingChanges } =
     useInlineEditing()
 
+  // Get pending new rows from editing state
+  const pendingNewRows = useMemo(() => editingState?.pendingNewRows ?? [], [editingState?.pendingNewRows])
+
+  // Combine existing rows with pending new rows for display
   const data = useMemo(() => {
     if (!result?.rows) return []
-    return result.rows.map((row: unknown[]) =>
+
+    // Convert existing rows
+    const existingRows = result.rows.map((row: unknown[]) =>
       Object.fromEntries(row.map((val: unknown, idx: number) => [String(idx), val as string | number | boolean | null]))
     )
-  }, [result?.rows])
+
+    // Convert pending new rows (map column names to column indices)
+    const newRowsData = pendingNewRows.map((pendingRow) => {
+      const rowData: RowData = { __isPendingNew: true, __tempId: pendingRow.tempId } as RowData
+      if (result?.columns) {
+        result.columns.forEach((col, idx) => {
+          rowData[String(idx)] = (pendingRow.values[col.name] as string | number | boolean | null) ?? null
+        })
+      }
+      return rowData
+    })
+
+    return [...existingRows, ...newRowsData]
+  }, [result?.rows, result?.columns, pendingNewRows])
 
   // Get editing cell from state
   const editingCell = editingState?.editingCell ?? null
@@ -719,12 +738,19 @@ export function DataGrid() {
                 const row = rows[virtualRow.index]
                 const isRowSelected = selectedRows.has(virtualRow.index) || selectedRowIndex === virtualRow.index
                 const isEvenRow = virtualRow.index % 2 === 0
+                const isPendingNewRow = row.original.__isPendingNew === true
                 return (
                   <div
                     key={row.id}
                     data-index={virtualRow.index}
                     className={`flex border-b border-border hover:bg-accent transition-colors absolute left-0 cursor-pointer ${
-                      isRowSelected ? 'bg-accent/50' : isEvenRow ? 'bg-background' : 'bg-muted'
+                      isPendingNewRow
+                        ? 'bg-emerald-500/10 border-l-2 border-l-emerald-500'
+                        : isRowSelected
+                          ? 'bg-accent/50'
+                          : isEvenRow
+                            ? 'bg-background'
+                            : 'bg-muted'
                     }`}
                     style={{
                       height: `${virtualRow.size}px`,
