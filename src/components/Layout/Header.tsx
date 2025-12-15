@@ -2,34 +2,35 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { useConnectionStore } from '@/stores/connectionStore'
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { DB_COLORS } from '@/types/workspace'
 import { ChevronLeft } from 'lucide-react'
 
 interface HeaderProps {
   onDisconnect?: () => void
 }
 
-const DB_BADGES: Record<string, { bg: string; label: string }> = {
-  postgres: { bg: 'bg-sky-500', label: 'Pg' },
-  sqlite: { bg: 'bg-violet-500', label: 'Sl' },
+const DB_LABELS: Record<string, string> = {
+  postgres: 'Pg',
+  sqlite: 'Sl',
 }
 
 export function Header({ onDisconnect }: HeaderProps) {
-  const connectionId = useWorkspaceStore((s) => s.connectionId)
-  const isConnected = useWorkspaceStore((s) => s.isConnected)
-  const connections = useConnectionStore((s) => s.connections)
-  const active = connections.find((c) => c.id === connectionId)
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  const workspaceCount = useWorkspaceManagerStore((s) => s.workspaceOrder.length)
 
-  const badge = active ? DB_BADGES[active.type] || DB_BADGES.postgres : null
+  const isConnected = activeWorkspace?.isConnected ?? false
+  const dbType = activeWorkspace?.dbType
+  const bgColor = dbType ? DB_COLORS[dbType] : undefined
+  const label = dbType ? DB_LABELS[dbType] : undefined
 
   return (
     <header className='flex h-12 items-center border-b border-border bg-card px-4 gap-3'>
-      {/* Back button */}
-      {onDisconnect && isConnected && (
+      {/* Back button - only when workspace exists */}
+      {onDisconnect && activeWorkspace && (
         <Button variant='ghost' size='icon' onClick={onDisconnect} className='h-8 w-8'>
           <ChevronLeft className='h-5 w-5' />
-          <span className='sr-only'>Disconnect</span>
+          <span className='sr-only'>Close Workspace</span>
         </Button>
       )}
 
@@ -42,25 +43,30 @@ export function Header({ onDisconnect }: HeaderProps) {
       {/* Divider */}
       <Separator orientation='vertical' className='h-6' />
 
-      {/* Connection info */}
-      {active && badge && (
+      {/* Active workspace info */}
+      {activeWorkspace && bgColor && label && (
         <div className='flex items-center gap-2'>
           <div
-            className={cn(
-              'w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs',
-              badge.bg
-            )}
+            className='w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs'
+            style={{ backgroundColor: bgColor }}
           >
-            {badge.label}
+            {label}
           </div>
-          <span className='text-sm text-foreground'>{active.name}</span>
-          {active.database && (
+          <span className='text-sm text-foreground'>{activeWorkspace.name}</span>
+          {activeWorkspace.schema && (
             <>
-              <span className='text-muted-foreground'>:</span>
-              <span className='text-sm text-muted-foreground'>{active.database}</span>
+              <span className='text-muted-foreground'>/</span>
+              <span className='text-sm text-muted-foreground'>{activeWorkspace.schema}</span>
             </>
           )}
         </div>
+      )}
+
+      {/* Workspace count badge */}
+      {workspaceCount > 1 && (
+        <Badge variant='secondary' className='text-xs'>
+          {workspaceCount} workspaces
+        </Badge>
       )}
 
       {/* Spacer */}

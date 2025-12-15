@@ -1,20 +1,23 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import { Plus, Table, Terminal, X } from 'lucide-react'
 
 export function InnerTabBar() {
-  const tabs = useWorkspaceStore((s) => s.tabs)
-  const tabOrder = useWorkspaceStore((s) => s.tabOrder)
-  const activeTabId = useWorkspaceStore((s) => s.activeTabId)
-  const switchTab = useWorkspaceStore((s) => s.switchTab)
-  const closeTab = useWorkspaceStore((s) => s.closeTab)
-  const createTab = useWorkspaceStore((s) => s.createTab)
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  const createTab = useWorkspaceManagerStore((s) => s.createTab)
+  const closeTab = useWorkspaceManagerStore((s) => s.closeTab)
+  const switchTab = useWorkspaceManagerStore((s) => s.switchTab)
 
+  if (!activeWorkspace) {
+    return <div className='h-9 bg-card border-b border-border' />
+  }
+
+  const { id: workspaceId, tabs, tabOrder, activeTabId } = activeWorkspace
   const canCloseTab = tabOrder.length > 1
 
   const handleNewQueryTab = () => {
-    createTab('query', 'SQL Query')
+    createTab(workspaceId, 'query', 'SQL Query')
   }
 
   return (
@@ -35,7 +38,7 @@ export function InnerTabBar() {
               'hover:bg-muted/50 transition-colors',
               isActive && 'bg-background border-b-2 border-b-primary -mb-px'
             )}
-            onClick={() => switchTab(tabId)}
+            onClick={() => switchTab(workspaceId, tabId)}
           >
             <Icon className='h-3.5 w-3.5 shrink-0 text-muted-foreground' />
             <span className='truncate text-xs flex-1'>
@@ -50,7 +53,7 @@ export function InnerTabBar() {
                 )}
                 onClick={(e) => {
                   e.stopPropagation()
-                  closeTab(tabId)
+                  closeTab(workspaceId, tabId)
                 }}
                 title='Close tab'
               >
@@ -61,7 +64,6 @@ export function InnerTabBar() {
         )
       })}
 
-      {/* New Tab button */}
       <Button
         variant='ghost'
         size='icon'

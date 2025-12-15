@@ -22,3 +22,32 @@ export interface WorkspaceState {
   tabOrder: string[]
   activeTabId: string | null
 }
+
+// Database type enum
+export type DbType = 'postgres' | 'sqlite'
+
+// Color mapping for DB types
+export const DB_COLORS: Record<DbType, string> = {
+  postgres: '#336791', // PostgreSQL blue
+  sqlite: '#003B57', // SQLite teal
+}
+
+// Single workspace - extends existing Tab structure
+export interface Workspace {
+  id: string
+  connectionId: string
+  name: string // Display name (from connection)
+  dbType: DbType
+  isConnected: boolean
+  schema?: string // Current schema (postgres only)
+  tabs: Record<string, Tab> // Reuse existing Tab type
+  tabOrder: string[]
+  activeTabId: string | null
+}
+
+// Manager state for all workspaces
+export interface WorkspaceManagerState {
+  workspaces: Record<string, Workspace>
+  workspaceOrder: string[] // For ordering in ActivityBar
+  activeWorkspaceId: string | null
+}

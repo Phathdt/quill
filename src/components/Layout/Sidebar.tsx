@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { executeQuery, WORKSPACE_ID } from '@/lib/tauri'
+import { executeQuery } from '@/lib/tauri'
 import { cn, getErrorMessage, sanitizeSqlIdentifier } from '@/lib/utils'
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import { ChevronRight, RefreshCw, Search, Table } from 'lucide-react'
 
 interface TableInfo {
@@ -14,24 +14,27 @@ interface TableInfo {
 }
 
 export function Sidebar() {
-  const isConnected = useWorkspaceStore((s) => s.isConnected)
-  const createTab = useWorkspaceStore((s) => s.createTab)
-  const setTabLoading = useWorkspaceStore((s) => s.setTabLoading)
-  const setTabResult = useWorkspaceStore((s) => s.setTabResult)
-  const setTabError = useWorkspaceStore((s) => s.setTabError)
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  const createTab = useWorkspaceManagerStore((s) => s.createTab)
+  const setTabLoading = useWorkspaceManagerStore((s) => s.setTabLoading)
+  const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
+  const setTabError = useWorkspaceManagerStore((s) => s.setTabError)
 
   const [tables, setTables] = useState<TableInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(true)
 
+  const isConnected = activeWorkspace?.isConnected ?? false
+  const workspaceId = activeWorkspace?.id
+
   const loadTables = useCallback(async () => {
-    if (!isConnected) return
+    if (!isConnected || !workspaceId) return
 
     setLoading(true)
     try {
       // Try PostgreSQL query first
       const result = await executeQuery(
-        WORKSPACE_ID,
+        workspaceId,
         `
         SELECT table_name as name, 'table' as type
         FROM information_schema.tables
@@ -52,7 +55,7 @@ export function Sidebar() {
       // Fallback to SQLite
       try {
         const result = await executeQuery(
-          WORKSPACE_ID,
+          workspaceId,
           `
           SELECT name, type FROM sqlite_master
           WHERE type IN ('table', 'view')
@@ -72,36 +75,32 @@ export function Sidebar() {
     } finally {
       setLoading(false)
     }
-  }, [isConnected])
+  }, [isConnected, workspaceId])
 
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && workspaceId) {
       loadTables()
     } else {
       setTables([])
     }
-  }, [isConnected, loadTables])
+  }, [isConnected, workspaceId, loadTables])
 
   // Handle table click - create new table tab and auto-execute
   const handleTableClick = async (tableName: string) => {
-    if (!isConnected) return
+    if (!isConnected || !workspaceId) return
 
-    // Sanitize table name to prevent SQL injection
     const safeTableName = sanitizeSqlIdentifier(tableName)
+    const tabId = createTab(workspaceId, 'table', tableName, safeTableName)
 
-    // Create new table tab
-    const tabId = createTab('table', tableName, safeTableName)
-
-    // Auto-execute the query
-    setTabLoading(tabId, true)
+    setTabLoading(workspaceId, tabId, true)
     try {
       const sql = `SELECT * FROM "${safeTableName}" LIMIT 100`
-      const result = await executeQuery(WORKSPACE_ID, sql)
-      setTabResult(tabId, result)
+      const result = await executeQuery(workspaceId, sql)
+      setTabResult(workspaceId, tabId, result)
     } catch (error) {
-      setTabError(tabId, getErrorMessage(error))
+      setTabError(workspaceId, tabId, getErrorMessage(error))
     } finally {
-      setTabLoading(tabId, false)
+      setTabLoading(workspaceId, tabId, false)
     }
   }
 
@@ -160,10 +159,9 @@ export function Sidebar() {
       <div className='p-2 border-t border-border flex items-center gap-2'>
         <Button variant='ghost' size='icon' onClick={loadTables} className='h-7 w-7' disabled={!isConnected}>
           <RefreshCw className='h-4 w-4' />
-          <span className='sr-only'>Refresh</span>
         </Button>
         <select className='flex-1 px-2 py-1 bg-background border border-input rounded text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring'>
-          <option>public</option>
+          <option>{activeWorkspace?.schema || 'public'}</option>
         </select>
       </div>
     </aside>

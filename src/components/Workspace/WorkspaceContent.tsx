@@ -1,13 +1,13 @@
 import { DataGrid } from '@/components/DataGrid/DataGrid'
 import { QueryEditor } from '@/components/QueryEditor/QueryEditor'
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 
 import { InnerTabBar } from './InnerTabBar'
 
 export function WorkspaceContent() {
-  const isConnected = useWorkspaceStore((s) => s.isConnected)
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
 
-  if (!isConnected) {
+  if (!activeWorkspace?.isConnected) {
     return (
       <div className='flex-1 flex items-center justify-center text-muted-foreground'>
         Not connected. Select a connection to start.

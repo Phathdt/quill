@@ -1,6 +1,6 @@
+import { sanitizeSqlIdentifier } from '@/lib/utils'
 import type { QueryResult } from '@/types/database'
 import type { Tab, WorkspaceState } from '@/types/workspace'
-import { sanitizeSqlIdentifier } from '@/lib/utils'
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'

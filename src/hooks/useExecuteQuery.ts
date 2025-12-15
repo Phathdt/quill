@@ -1,44 +1,41 @@
 import { useCallback } from 'react'
 
-import { executeQuery, WORKSPACE_ID } from '@/lib/tauri'
+import { executeQuery } from '@/lib/tauri'
 import { getErrorMessage } from '@/lib/utils'
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 
 export function useExecuteQuery() {
-  const activeTabId = useWorkspaceStore((s) => s.activeTabId)
-  const tabs = useWorkspaceStore((s) => s.tabs)
-  const isConnected = useWorkspaceStore((s) => s.isConnected)
-  const setTabResult = useWorkspaceStore((s) => s.setTabResult)
-  const setTabError = useWorkspaceStore((s) => s.setTabError)
-  const setTabLoading = useWorkspaceStore((s) => s.setTabLoading)
-
-  const activeTab = activeTabId ? tabs[activeTabId] : null
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
+  const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
+  const setTabError = useWorkspaceManagerStore((s) => s.setTabError)
+  const setTabLoading = useWorkspaceManagerStore((s) => s.setTabLoading)
 
   const execute = useCallback(
     async (sql?: string) => {
-      if (!activeTabId || !isConnected) {
-        throw new Error('No active tab or not connected')
+      if (!activeWorkspace || !activeTab || !activeWorkspace.isConnected) {
+        throw new Error('No active workspace/tab or not connected')
       }
 
-      const queryToExecute = sql || activeTab?.sql || ''
+      const queryToExecute = sql || activeTab.sql || ''
       if (!queryToExecute.trim()) {
         return
       }
 
-      setTabLoading(activeTabId, true)
+      setTabLoading(activeWorkspace.id, activeTab.id, true)
 
       try {
-        const result = await executeQuery(WORKSPACE_ID, queryToExecute)
-        setTabResult(activeTabId, result)
+        const result = await executeQuery(activeWorkspace.id, queryToExecute)
+        setTabResult(activeWorkspace.id, activeTab.id, result)
         return result
       } catch (error) {
-        setTabError(activeTabId, getErrorMessage(error))
+        setTabError(activeWorkspace.id, activeTab.id, getErrorMessage(error))
         throw error
       } finally {
-        setTabLoading(activeTabId, false)
+        setTabLoading(activeWorkspace.id, activeTab.id, false)
       }
     },
-    [activeTabId, activeTab?.sql, isConnected, setTabResult, setTabError, setTabLoading]
+    [activeWorkspace, activeTab, setTabResult, setTabError, setTabLoading]
   )
 
   return {

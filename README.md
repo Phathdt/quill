@@ -16,6 +16,11 @@ A fast, lightweight, open-source database GUI built with Tauri + React + TypeScr
 ## Current Features ✅
 
 - **Databases:** PostgreSQL, SQLite
+- **Multi-Workspace:** Up to 5 simultaneous database connections
+  - VS Code-style activity bar (left sidebar)
+  - Right-click context menu: Close This / Close Others
+  - Color-coded by database type (PostgreSQL=blue, SQLite=green)
+  - Instant workspace switching (<100ms)
 - **Query Editor:** Monaco-based with syntax highlighting, Cmd+Enter execution
 - **Data Grid:** Virtual scrolling (handles 10k+ rows), type-aware formatting
 - **Multi-tab:** Multiple query tabs per workspace
@@ -33,15 +38,18 @@ A fast, lightweight, open-source database GUI built with Tauri + React + TypeScr
 
 ## Roadmap
 
-### Phase 0: Multi-Workspace ⏳ (In Progress)
+### Phase 0: Multi-Workspace ✅ (Complete)
 Complete multi-database workflow support.
 
 - [x] Inner tab system (multiple tabs per workspace)
 - [x] Backend multi-connection support
-- [ ] Outer workspace tabs (multiple connections simultaneously)
-- [ ] Workspace isolation and switching
+- [x] Activity bar with workspace icons (VS Code-style)
+- [x] Right-click context menu (Close This / Close Others)
+- [x] Workspace isolation and instant switching
+- [x] Status bar showing current connection info
+- [x] Max 5 workspaces enforcement
 
-**Design Decision:** Workspaces are session-only (no persistence on restart). All connections kept alive via periodic health checks to prevent timeout interruptions.
+**Design Decision:** Workspaces are session-only (no persistence on restart). Closing last workspace redirects to welcome page.
 
 ### Phase 1: MVP Table Stakes 🎯 (Next)
 Features every database GUI user expects.

@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react'
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import type { Column } from '@/types/database'
 import { AlertCircle, FileText, Loader2 } from 'lucide-react'
 
@@ -13,11 +13,8 @@ import { GridToolbar } from './GridToolbar'
 type RowData = Record<string, string | number | boolean | null>
 
 export function DataGrid() {
-  const activeTabId = useWorkspaceStore((s) => s.activeTabId)
-  const tabs = useWorkspaceStore((s) => s.tabs)
+  const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const parentRef = useRef<HTMLDivElement>(null)
-
-  const activeTab = activeTabId ? tabs[activeTabId] : null
 
   const result = activeTab?.result ?? null
   const error = activeTab?.error ?? null

@@ -1,16 +1,17 @@
 import { Button } from '@/components/ui/button'
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import { Eraser, Loader2, Play } from 'lucide-react'
 
 export function EditorToolbar() {
   const { execute, loading } = useExecuteQuery()
-  const activeTabId = useWorkspaceStore((s) => s.activeTabId)
-  const setTabSql = useWorkspaceStore((s) => s.setTabSql)
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
+  const setTabSql = useWorkspaceManagerStore((s) => s.setTabSql)
 
   const handleClear = () => {
-    if (activeTabId) {
-      setTabSql(activeTabId, '')
+    if (activeWorkspace && activeTab) {
+      setTabSql(activeWorkspace.id, activeTab.id, '')
     }
   }
 

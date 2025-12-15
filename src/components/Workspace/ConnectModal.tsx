@@ -5,10 +5,9 @@ import { invoke } from '@tauri-apps/api/tauri'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { WORKSPACE_ID } from '@/lib/tauri'
 import { getErrorMessage } from '@/lib/utils'
 import { useConnectionStore } from '@/stores/connectionStore'
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import { Database, Loader2 } from 'lucide-react'
 
 interface ConnectModalProps {
@@ -21,8 +20,8 @@ export function ConnectModal({ open, onClose }: ConnectModalProps) {
   const [error, setError] = useState<string | null>(null)
 
   const connections = useConnectionStore((s) => s.connections)
-  const connect = useWorkspaceStore((s) => s.connect)
-  const setConnected = useWorkspaceStore((s) => s.setConnected)
+  const createWorkspace = useWorkspaceManagerStore((s) => s.createWorkspace)
+  const setWorkspaceConnected = useWorkspaceManagerStore((s) => s.setWorkspaceConnected)
 
   const handleSelect = async (connectionId: string) => {
     const connection = connections.find((c) => c.id === connectionId)
@@ -31,20 +30,24 @@ export function ConnectModal({ open, onClose }: ConnectModalProps) {
     setLoading(connectionId)
     setError(null)
 
-    // Set connection ID in store
-    connect(connectionId)
+    // Create new workspace
+    const workspaceId = createWorkspace(connection)
+    if (!workspaceId) {
+      setError('Maximum 5 workspaces allowed')
+      setLoading(null)
+      return
+    }
 
     try {
-      // Establish DB connection with fixed workspace ID
       await invoke('connect_workspace', {
-        workspaceId: WORKSPACE_ID,
+        workspaceId,
         connectionString: connection.path,
       })
-      setConnected(true)
+      setWorkspaceConnected(workspaceId, true)
       onClose()
     } catch (err) {
       setError(getErrorMessage(err))
-      setConnected(false)
+      setWorkspaceConnected(workspaceId, false)
     } finally {
       setLoading(null)
     }

@@ -2,9 +2,6 @@ import { invoke } from '@tauri-apps/api/tauri'
 
 import type { QueryResult } from '@/types/database'
 
-// Single workspace ID for backend - centralized constant
-export const WORKSPACE_ID = 'default'
-
 export async function executeQuery(workspaceId: string, sql: string): Promise<QueryResult> {
   return invoke<QueryResult>('execute_query', { workspaceId, sql })
 }

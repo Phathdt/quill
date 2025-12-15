@@ -3,16 +3,14 @@ import { useCallback, useRef } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
-import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 
 import { EditorToolbar } from './EditorToolbar'
 
 export function QueryEditor() {
-  const activeTabId = useWorkspaceStore((s) => s.activeTabId)
-  const tabs = useWorkspaceStore((s) => s.tabs)
-  const setTabSql = useWorkspaceStore((s) => s.setTabSql)
-
-  const activeTab = activeTabId ? tabs[activeTabId] : null
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
+  const setTabSql = useWorkspaceManagerStore((s) => s.setTabSql)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorRef = useRef<any>(null)
@@ -20,11 +18,11 @@ export function QueryEditor() {
 
   const handleChange = useCallback(
     (value: string | undefined) => {
-      if (activeTabId && value !== undefined) {
-        setTabSql(activeTabId, value)
+      if (activeWorkspace && activeTab && value !== undefined) {
+        setTabSql(activeWorkspace.id, activeTab.id, value)
       }
     },
-    [activeTabId, setTabSql]
+    [activeWorkspace, activeTab, setTabSql]
   )
 
   const handleMount: OnMount = (editor, monaco) => {
