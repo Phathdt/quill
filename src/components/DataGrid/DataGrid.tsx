@@ -432,10 +432,10 @@ export function DataGrid() {
   }, [focusedCell])
 
   // Clear focus state when switching away from table mode
+  // Keep selectedRows for copy functionality in query mode
   useEffect(() => {
     if (!isTableMode) {
       setFocusedCell(null)
-      setSelectedRows(new Set())
     }
   }, [isTableMode])
 
