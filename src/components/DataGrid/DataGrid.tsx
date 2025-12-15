@@ -1,9 +1,11 @@
+/* eslint-disable react-hooks/incompatible-library */
 import { useMemo, useRef } from 'react'
 
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
-import { useQueryStore } from '@/stores/queryStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
+import type { Column } from '@/types/database'
 import { AlertCircle, FileText, Loader2 } from 'lucide-react'
 
 import { GridToolbar } from './GridToolbar'
@@ -11,18 +13,23 @@ import { GridToolbar } from './GridToolbar'
 type RowData = Record<string, string | number | boolean | null>
 
 export function DataGrid() {
-  const result = useQueryStore((s) => s.result)
-  const error = useQueryStore((s) => s.error)
-  const loading = useQueryStore((s) => s.loading)
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId)
+  const tabs = useWorkspaceStore((s) => s.tabs)
   const parentRef = useRef<HTMLDivElement>(null)
+
+  const activeTab = activeTabId ? tabs[activeTabId] : null
+
+  const result = activeTab?.result ?? null
+  const error = activeTab?.error ?? null
+  const loading = activeTab?.loading ?? false
 
   const columns = useMemo<ColumnDef<RowData>[]>(() => {
     if (!result?.columns) return []
-    return result.columns.map((col, idx) => ({
+    return result.columns.map((col: Column, idx: number) => ({
       accessorKey: String(idx),
       header: col.name,
       size: 150,
-      cell: (info) => {
+      cell: (info: { getValue: () => unknown }) => {
         const val = info.getValue()
         if (val === null) return <span className='text-muted-foreground/50 italic'>NULL</span>
         if (typeof val === 'boolean') return <span className='text-amber-400'>{String(val)}</span>
@@ -35,10 +42,11 @@ export function DataGrid() {
 
   const data = useMemo(() => {
     if (!result?.rows) return []
-    return result.rows.map((row) => Object.fromEntries(row.map((val, idx) => [String(idx), val])))
+    return result.rows.map((row: unknown[]) =>
+      Object.fromEntries(row.map((val: unknown, idx: number) => [String(idx), val as string | number | boolean | null]))
+    )
   }, [result?.rows])
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
@@ -53,6 +61,10 @@ export function DataGrid() {
     estimateSize: () => 32,
     overscan: 20,
   })
+
+  if (!activeTab) {
+    return null
+  }
 
   if (error) {
     return (

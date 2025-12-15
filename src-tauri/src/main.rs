@@ -6,14 +6,17 @@ mod db;
 mod error;
 mod models;
 
-use db::connection::DbState;
+use db::connection::MultiDbState;
 
 fn main() {
     tauri::Builder::default()
-        .manage(DbState::new())
+        .manage(MultiDbState::new())
         .invoke_handler(tauri::generate_handler![
             commands::query::execute_query,
-            commands::query::connect_database,
+            commands::query::connect_workspace,
+            commands::query::disconnect_workspace,
+            commands::query::get_workspace_connection_status,
+            commands::query::test_connection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

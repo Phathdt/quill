@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { executeQuery } from '@/lib/tauri'
-import { cn } from '@/lib/utils'
+import { executeQuery, WORKSPACE_ID } from '@/lib/tauri'
+import { cn, getErrorMessage, sanitizeSqlIdentifier } from '@/lib/utils'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { ChevronRight, RefreshCw, Search, Table } from 'lucide-react'
 
 interface TableInfo {
@@ -13,24 +14,31 @@ interface TableInfo {
 }
 
 export function Sidebar() {
+  const isConnected = useWorkspaceStore((s) => s.isConnected)
+  const createTab = useWorkspaceStore((s) => s.createTab)
+  const setTabLoading = useWorkspaceStore((s) => s.setTabLoading)
+  const setTabResult = useWorkspaceStore((s) => s.setTabResult)
+  const setTabError = useWorkspaceStore((s) => s.setTabError)
+
   const [tables, setTables] = useState<TableInfo[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(true)
 
-  useEffect(() => {
-    loadTables()
-  }, [])
+  const loadTables = useCallback(async () => {
+    if (!isConnected) return
 
-  const loadTables = async () => {
     setLoading(true)
     try {
       // Try PostgreSQL query first
-      const result = await executeQuery(`
+      const result = await executeQuery(
+        WORKSPACE_ID,
+        `
         SELECT table_name as name, 'table' as type
         FROM information_schema.tables
         WHERE table_schema = 'public'
         ORDER BY table_name
-      `)
+      `
+      )
 
       if (result.rows.length > 0) {
         setTables(
@@ -43,12 +51,15 @@ export function Sidebar() {
     } catch {
       // Fallback to SQLite
       try {
-        const result = await executeQuery(`
+        const result = await executeQuery(
+          WORKSPACE_ID,
+          `
           SELECT name, type FROM sqlite_master
           WHERE type IN ('table', 'view')
           AND name NOT LIKE 'sqlite_%'
           ORDER BY name
-        `)
+        `
+        )
         setTables(
           result.rows.map((row) => ({
             name: String(row[0]),
@@ -60,6 +71,37 @@ export function Sidebar() {
       }
     } finally {
       setLoading(false)
+    }
+  }, [isConnected])
+
+  useEffect(() => {
+    if (isConnected) {
+      loadTables()
+    } else {
+      setTables([])
+    }
+  }, [isConnected, loadTables])
+
+  // Handle table click - create new table tab and auto-execute
+  const handleTableClick = async (tableName: string) => {
+    if (!isConnected) return
+
+    // Sanitize table name to prevent SQL injection
+    const safeTableName = sanitizeSqlIdentifier(tableName)
+
+    // Create new table tab
+    const tabId = createTab('table', tableName, safeTableName)
+
+    // Auto-execute the query
+    setTabLoading(tabId, true)
+    try {
+      const sql = `SELECT * FROM "${safeTableName}" LIMIT 100`
+      const result = await executeQuery(WORKSPACE_ID, sql)
+      setTabResult(tabId, result)
+    } catch (error) {
+      setTabError(tabId, getErrorMessage(error))
+    } finally {
+      setTabLoading(tabId, false)
     }
   }
 
@@ -89,7 +131,9 @@ export function Sidebar() {
 
             {expanded && (
               <div className='ml-4 mt-1 space-y-0.5'>
-                {loading ? (
+                {!isConnected ? (
+                  <div className='text-sm text-muted-foreground py-1'>Not connected</div>
+                ) : loading ? (
                   <div className='text-sm text-muted-foreground py-1'>Loading...</div>
                 ) : tables.length === 0 ? (
                   <div className='text-sm text-muted-foreground py-1'>No tables</div>
@@ -99,6 +143,7 @@ export function Sidebar() {
                       key={table.name}
                       variant='ghost'
                       className='w-full justify-start gap-2 h-auto py-1 px-2 text-sm font-normal'
+                      onClick={() => handleTableClick(table.name)}
                     >
                       <Table className='h-4 w-4 text-muted-foreground' />
                       <span className='truncate'>{table.name}</span>
@@ -113,7 +158,7 @@ export function Sidebar() {
 
       {/* Bottom bar */}
       <div className='p-2 border-t border-border flex items-center gap-2'>
-        <Button variant='ghost' size='icon' onClick={loadTables} className='h-7 w-7'>
+        <Button variant='ghost' size='icon' onClick={loadTables} className='h-7 w-7' disabled={!isConnected}>
           <RefreshCw className='h-4 w-4' />
           <span className='sr-only'>Refresh</span>
         </Button>

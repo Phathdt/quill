@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { useConnectionStore } from '@/stores/connectionStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { ChevronLeft } from 'lucide-react'
 
 interface HeaderProps {
@@ -15,19 +16,20 @@ const DB_BADGES: Record<string, { bg: string; label: string }> = {
 }
 
 export function Header({ onDisconnect }: HeaderProps) {
-  const activeId = useConnectionStore((s) => s.activeId)
+  const connectionId = useWorkspaceStore((s) => s.connectionId)
+  const isConnected = useWorkspaceStore((s) => s.isConnected)
   const connections = useConnectionStore((s) => s.connections)
-  const active = connections.find((c) => c.id === activeId)
+  const active = connections.find((c) => c.id === connectionId)
 
   const badge = active ? DB_BADGES[active.type] || DB_BADGES.postgres : null
 
   return (
     <header className='flex h-12 items-center border-b border-border bg-card px-4 gap-3'>
       {/* Back button */}
-      {onDisconnect && (
+      {onDisconnect && isConnected && (
         <Button variant='ghost' size='icon' onClick={onDisconnect} className='h-8 w-8'>
           <ChevronLeft className='h-5 w-5' />
-          <span className='sr-only'>Back to connections</span>
+          <span className='sr-only'>Disconnect</span>
         </Button>
       )}
 
@@ -65,9 +67,14 @@ export function Header({ onDisconnect }: HeaderProps) {
       <div className='flex-1' />
 
       {/* Connection status */}
-      <Badge variant='outline' className='text-emerald-400 border-emerald-400/30'>
-        <div className='w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2' />
-        Connected
+      <Badge
+        variant='outline'
+        className={cn(isConnected ? 'text-emerald-400 border-emerald-400/30' : 'text-gray-400 border-gray-400/30')}
+      >
+        <div
+          className={cn('w-2 h-2 rounded-full mr-2', isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-400')}
+        />
+        {isConnected ? 'Connected' : 'Disconnected'}
       </Badge>
     </header>
   )

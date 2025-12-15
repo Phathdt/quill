@@ -12,9 +12,10 @@ import { NewConnectionModal } from './NewConnectionModal'
 
 interface WelcomeScreenProps {
   onConnect: (connection: Connection) => void
+  error?: string | null
 }
 
-export function WelcomeScreen({ onConnect }: WelcomeScreenProps) {
+export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
   const [search, setSearch] = useState('')
   const [showTypeModal, setShowTypeModal] = useState(false)
   const [showNewModal, setShowNewModal] = useState(false)
@@ -75,6 +76,13 @@ export function WelcomeScreen({ onConnect }: WelcomeScreenProps) {
 
       {/* Main Content - Connection List */}
       <main className='flex-1 flex flex-col bg-background'>
+        {/* Error Message */}
+        {error && (
+          <div className='mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm'>
+            {error}
+          </div>
+        )}
+
         {/* Search Bar */}
         <div className='p-4 border-b border-border'>
           <div className='relative'>

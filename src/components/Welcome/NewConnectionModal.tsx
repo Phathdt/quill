@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { invoke } from '@tauri-apps/api/tauri'
+
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -55,9 +57,8 @@ export function NewConnectionModal({ dbType, onClose, onCreated }: NewConnection
     setTestError('')
 
     try {
-      const { invoke } = await import('@tauri-apps/api/tauri')
       const connectionString = buildConnectionString()
-      await invoke('connect_database', { connectionString })
+      await invoke('test_connection', { connectionString })
       setTestResult('success')
     } catch (err) {
       setTestResult('error')
@@ -98,9 +99,8 @@ export function NewConnectionModal({ dbType, onClose, onCreated }: NewConnection
 
   const handleConnect = async () => {
     try {
-      const { invoke } = await import('@tauri-apps/api/tauri')
       const connectionString = buildConnectionString()
-      await invoke('connect_database', { connectionString })
+      await invoke('test_connection', { connectionString })
       handleSave()
     } catch (err) {
       setTestResult('error')

@@ -1,15 +1,26 @@
 import { Button } from '@/components/ui/button'
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
-import { useQueryStore } from '@/stores/queryStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { Eraser, Loader2, Play } from 'lucide-react'
 
 export function EditorToolbar() {
   const { execute, loading } = useExecuteQuery()
-  const clear = useQueryStore((s) => s.clear)
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId)
+  const setTabSql = useWorkspaceStore((s) => s.setTabSql)
+
+  const handleClear = () => {
+    if (activeTabId) {
+      setTabSql(activeTabId, '')
+    }
+  }
+
+  const handleExecute = () => {
+    execute()
+  }
 
   return (
     <div className='flex items-center gap-2 px-3 py-2 bg-card border-t border-border'>
-      <Button onClick={execute} disabled={loading} size='sm' className='gap-2'>
+      <Button onClick={handleExecute} disabled={loading} size='sm' className='gap-2'>
         {loading ? (
           <>
             <Loader2 className='h-4 w-4 animate-spin' />
@@ -22,7 +33,7 @@ export function EditorToolbar() {
           </>
         )}
       </Button>
-      <Button onClick={clear} variant='ghost' size='sm'>
+      <Button onClick={handleClear} variant='ghost' size='sm'>
         <Eraser className='h-4 w-4 mr-2' />
         Clear
       </Button>
