@@ -12,7 +12,9 @@ export function WelcomePage() {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const createWorkspace = useWorkspaceManagerStore((s) => s.createWorkspace)
+  const closeWorkspace = useWorkspaceManagerStore((s) => s.closeWorkspace)
   const setWorkspaceConnected = useWorkspaceManagerStore((s) => s.setWorkspaceConnected)
+  const workspaceCount = useWorkspaceManagerStore((s) => s.workspaceOrder.length)
 
   const handleConnect = async (connection: Connection) => {
     setError(null)
@@ -20,7 +22,7 @@ export function WelcomePage() {
     // Create new workspace
     const workspaceId = createWorkspace(connection)
     if (!workspaceId) {
-      setError('Maximum 5 workspaces allowed')
+      setError(`Maximum 5 workspaces allowed (currently ${workspaceCount} open). Close some workspaces first.`)
       return
     }
 
@@ -35,8 +37,9 @@ export function WelcomePage() {
       setWorkspaceConnected(workspaceId, true)
       navigate('/workspaces')
     } catch (err) {
+      // Clean up the workspace if connection failed
+      closeWorkspace(workspaceId)
       setError(getErrorMessage(err))
-      setWorkspaceConnected(workspaceId, false)
     }
   }
 

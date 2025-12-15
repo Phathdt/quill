@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react'
 
+import Editor from '@monaco-editor/react'
+
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { toast } from '@/lib/toast'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import type { CellEdit, PendingNewRow } from '@/types/editing'
-import { Check, Code, X } from 'lucide-react'
+import { Check, Code, Copy, X } from 'lucide-react'
 
 interface EditingToolbarProps {
   onSave: () => void
@@ -16,6 +19,7 @@ interface TableChange {
   tableName: string
   changes: CellEdit[]
   newRows: PendingNewRow[]
+  deletes: number[]
   primaryKeys: string[]
   columns: { name: string }[]
   rows: unknown[][]
@@ -38,14 +42,16 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
       const pendingChanges = tab.editingState?.pendingChanges ?? {}
       const changesList = Object.values(pendingChanges) as CellEdit[]
       const pendingNewRows = tab.editingState?.pendingNewRows ?? []
+      const pendingDeletes = tab.editingState?.pendingDeletes ?? []
 
-      if (changesList.length === 0 && pendingNewRows.length === 0) continue
+      if (changesList.length === 0 && pendingNewRows.length === 0 && pendingDeletes.length === 0) continue
 
       changes.push({
         tabId: tab.id,
         tableName: tab.tableName,
         changes: changesList,
         newRows: pendingNewRows,
+        deletes: pendingDeletes,
         primaryKeys: tab.editingState?.primaryKeyColumns ?? [],
         columns: tab.result?.columns ?? [],
         rows: tab.result?.rows ?? [],
@@ -57,13 +63,14 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
 
   const totalPendingChanges = allTableChanges.reduce((sum, tc) => sum + tc.changes.length, 0)
   const totalPendingInserts = allTableChanges.reduce((sum, tc) => sum + tc.newRows.length, 0)
-  const totalPendingCount = totalPendingChanges + totalPendingInserts
+  const totalPendingDeletes = allTableChanges.reduce((sum, tc) => sum + tc.deletes.length, 0)
+  const totalPendingCount = totalPendingChanges + totalPendingInserts + totalPendingDeletes
 
   if (totalPendingCount === 0) return null
 
   // Generate SQL preview for all pending changes across all tables
-  const generateSqlStatements = (): { tableName: string; sql: string; type: 'UPDATE' | 'INSERT' }[] => {
-    const statements: { tableName: string; sql: string; type: 'UPDATE' | 'INSERT' }[] = []
+  const generateSqlStatements = (): { tableName: string; sql: string; type: 'UPDATE' | 'INSERT' | 'DELETE' }[] => {
+    const statements: { tableName: string; sql: string; type: 'UPDATE' | 'INSERT' | 'DELETE' }[] = []
 
     for (const tableChange of allTableChanges) {
       // Generate UPDATE statements for cell changes
@@ -100,13 +107,37 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
 
       // Generate INSERT statements for new rows
       for (const newRow of tableChange.newRows) {
-        const columns = Object.keys(newRow.values)
-        const values = Object.values(newRow.values)
+        // Filter out null/undefined values (for auto-generated columns)
+        const nonNullEntries = Object.entries(newRow.values).filter(([, v]) => v !== null && v !== undefined)
+        if (nonNullEntries.length === 0) continue
+
+        const columns = nonNullEntries.map(([k]) => k)
+        const values = nonNullEntries.map(([, v]) => v)
 
         statements.push({
           tableName: tableChange.tableName,
           sql: `INSERT INTO "public"."${tableChange.tableName}" (${columns.map((c) => `"${c}"`).join(', ')}) VALUES (${values.map((v) => formatSqlValue(v)).join(', ')});`,
           type: 'INSERT',
+        })
+      }
+
+      // Generate DELETE statements for pending deletes
+      for (const rowIndex of tableChange.deletes) {
+        const row = tableChange.rows[rowIndex]
+
+        // Build WHERE clause from primary keys
+        const whereClauses = tableChange.primaryKeys
+          .map((pkCol) => {
+            const colIndex = tableChange.columns.findIndex((c) => c.name === pkCol)
+            const value = row?.[colIndex]
+            return `"${pkCol}" = ${formatSqlValue(value)}`
+          })
+          .join(' AND ')
+
+        statements.push({
+          tableName: tableChange.tableName,
+          sql: `DELETE FROM "public"."${tableChange.tableName}" WHERE ${whereClauses};`,
+          type: 'DELETE',
         })
       }
     }
@@ -122,8 +153,14 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
       <div className='flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/30'>
         <span className='text-xs text-amber-400'>
           {totalPendingChanges > 0 && `${totalPendingChanges} edit${totalPendingChanges > 1 ? 's' : ''}`}
-          {totalPendingChanges > 0 && totalPendingInserts > 0 && ', '}
+          {totalPendingChanges > 0 && (totalPendingInserts > 0 || totalPendingDeletes > 0) && ', '}
           {totalPendingInserts > 0 && `${totalPendingInserts} new row${totalPendingInserts > 1 ? 's' : ''}`}
+          {totalPendingInserts > 0 && totalPendingDeletes > 0 && ', '}
+          {totalPendingDeletes > 0 && (
+            <span className='text-red-400'>
+              {totalPendingDeletes} delete{totalPendingDeletes > 1 ? 's' : ''}
+            </span>
+          )}
           {affectedTables.length > 1 && (
             <span className='text-muted-foreground ml-1'>
               in {affectedTables.length} tables ({affectedTables.join(', ')})
@@ -134,7 +171,12 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
         <div className='flex-1' />
 
         {/* Clear button */}
-        <Button size='sm' variant='ghost' onClick={onDiscard} className='h-6 text-xs text-muted-foreground hover:text-foreground'>
+        <Button
+          size='sm'
+          variant='ghost'
+          onClick={onDiscard}
+          className='h-6 text-xs text-muted-foreground hover:text-foreground'
+        >
           <X className='h-3 w-3 mr-1' />
           Clear
         </Button>
@@ -159,21 +201,46 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
 
       {/* SQL Preview Dialog */}
       <Dialog open={showSqlPreview} onOpenChange={setShowSqlPreview}>
-        <DialogContent className='max-w-2xl'>
+        <DialogContent className='max-w-5xl'>
           <DialogHeader>
-            <DialogTitle>SQL Preview ({sqlStatements.length} statement{sqlStatements.length > 1 ? 's' : ''})</DialogTitle>
+            <DialogTitle>
+              SQL Preview ({sqlStatements.length} statement{sqlStatements.length > 1 ? 's' : ''})
+            </DialogTitle>
           </DialogHeader>
-          <div className='bg-muted/50 rounded-md p-4 max-h-[400px] overflow-auto'>
-            <pre className='text-sm font-mono text-foreground whitespace-pre-wrap'>
-              {sqlStatements.map((stmt, i) => (
-                <div key={i} className='mb-3'>
-                  <div className='text-xs text-muted-foreground mb-1'>-- {stmt.tableName}</div>
-                  <div>{highlightSql(stmt.sql)}</div>
-                </div>
-              ))}
-            </pre>
+          <div className='rounded-md overflow-hidden border border-border'>
+            <Editor
+              height={Math.min(600, Math.max(300, sqlStatements.length * 100))}
+              defaultLanguage='sql'
+              value={sqlStatements.map((stmt) => `-- ${stmt.tableName}\n${stmt.sql}`).join('\n\n')}
+              theme='vs-dark'
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                fontSize: 13,
+                fontFamily: 'JetBrains Mono, Menlo, Monaco, monospace',
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                padding: { top: 12, bottom: 12 },
+                renderLineHighlight: 'none',
+                wordWrap: 'on',
+                folding: false,
+                contextmenu: true,
+              }}
+            />
           </div>
           <div className='flex justify-end gap-2 mt-4'>
+            <Button
+              variant='outline'
+              onClick={() => {
+                const sqlText = sqlStatements.map((stmt) => `-- ${stmt.tableName}\n${stmt.sql}`).join('\n\n')
+                navigator.clipboard.writeText(sqlText)
+                toast.success('SQL copied to clipboard')
+              }}
+            >
+              <Copy className='h-4 w-4 mr-1' />
+              Copy SQL
+            </Button>
             <Button variant='ghost' onClick={() => setShowSqlPreview(false)}>
               Close
             </Button>
@@ -199,89 +266,12 @@ function formatSqlValue(value: unknown): string {
   if (value === null || value === undefined) return 'NULL'
   if (typeof value === 'number') return String(value)
   if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
-  // Escape single quotes
+  // Handle objects (JSONB) - stringify and escape
+  if (typeof value === 'object') {
+    const jsonStr = JSON.stringify(value).replace(/'/g, "''")
+    return `'${jsonStr}'`
+  }
+  // Escape single quotes for strings
   const escaped = String(value).replace(/'/g, "''")
   return `'${escaped}'`
-}
-
-// Simple SQL syntax highlighting
-function highlightSql(sql: string): React.ReactNode {
-  const keywords = ['UPDATE', 'SET', 'WHERE', 'AND', 'OR', 'NULL', 'TRUE', 'FALSE', 'INSERT', 'INTO', 'VALUES']
-  const parts: React.ReactNode[] = []
-
-  let remaining = sql
-  let key = 0
-
-  while (remaining.length > 0) {
-    let matched = false
-
-    // Check for keywords
-    for (const keyword of keywords) {
-      if (remaining.toUpperCase().startsWith(keyword) && (remaining.length === keyword.length || !/\w/.test(remaining[keyword.length]))) {
-        parts.push(
-          <span key={key++} className='text-cyan-400'>
-            {remaining.slice(0, keyword.length)}
-          </span>
-        )
-        remaining = remaining.slice(keyword.length)
-        matched = true
-        break
-      }
-    }
-
-    if (matched) continue
-
-    // Check for strings (single quotes)
-    if (remaining.startsWith("'")) {
-      const endQuote = remaining.indexOf("'", 1)
-      if (endQuote !== -1) {
-        let actualEnd = endQuote
-        while (actualEnd < remaining.length - 1 && remaining[actualEnd + 1] === "'") {
-          actualEnd = remaining.indexOf("'", actualEnd + 2)
-          if (actualEnd === -1) break
-        }
-        if (actualEnd !== -1) {
-          parts.push(
-            <span key={key++} className='text-amber-400'>
-              {remaining.slice(0, actualEnd + 1)}
-            </span>
-          )
-          remaining = remaining.slice(actualEnd + 1)
-          continue
-        }
-      }
-    }
-
-    // Check for numbers
-    const numMatch = remaining.match(/^\d+/)
-    if (numMatch) {
-      parts.push(
-        <span key={key++} className='text-emerald-400'>
-          {numMatch[0]}
-        </span>
-      )
-      remaining = remaining.slice(numMatch[0].length)
-      continue
-    }
-
-    // Check for identifiers (quoted)
-    if (remaining.startsWith('"')) {
-      const endQuote = remaining.indexOf('"', 1)
-      if (endQuote !== -1) {
-        parts.push(
-          <span key={key++} className='text-foreground'>
-            {remaining.slice(0, endQuote + 1)}
-          </span>
-        )
-        remaining = remaining.slice(endQuote + 1)
-        continue
-      }
-    }
-
-    // Default: just add the character
-    parts.push(<span key={key++}>{remaining[0]}</span>)
-    remaining = remaining.slice(1)
-  }
-
-  return parts
 }

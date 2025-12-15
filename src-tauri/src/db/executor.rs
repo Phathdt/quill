@@ -137,8 +137,9 @@ fn extract_sqlite_value(row: &sqlx::sqlite::SqliteRow, i: usize) -> serde_json::
     }
 }
 
-fn extract_postgres_value(row: &sqlx::postgres::PgRow, i: usize) -> serde_json::Value {
+pub fn extract_postgres_value(row: &sqlx::postgres::PgRow, i: usize) -> serde_json::Value {
     use base64::{engine::general_purpose, Engine as _};
+    use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
     match row.try_get_raw(i) {
         Ok(raw_value) => {
@@ -167,6 +168,23 @@ fn extract_postgres_value(row: &sqlx::postgres::PgRow, i: usize) -> serde_json::
             }
             if let Ok(v) = row.try_get::<String, _>(i) {
                 return serde_json::json!(v);
+            }
+            // Handle timestamp types
+            if let Ok(v) = row.try_get::<NaiveDateTime, _>(i) {
+                return serde_json::json!(v.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
+            }
+            if let Ok(v) = row.try_get::<DateTime<Utc>, _>(i) {
+                return serde_json::json!(v.format("%Y-%m-%d %H:%M:%S%.3f %Z").to_string());
+            }
+            if let Ok(v) = row.try_get::<NaiveDate, _>(i) {
+                return serde_json::json!(v.format("%Y-%m-%d").to_string());
+            }
+            if let Ok(v) = row.try_get::<NaiveTime, _>(i) {
+                return serde_json::json!(v.format("%H:%M:%S%.3f").to_string());
+            }
+            // Handle JSONB/JSON types
+            if let Ok(v) = row.try_get::<serde_json::Value, _>(i) {
+                return v;
             }
             if let Ok(v) = row.try_get::<Vec<u8>, _>(i) {
                 return serde_json::json!(general_purpose::STANDARD.encode(v));

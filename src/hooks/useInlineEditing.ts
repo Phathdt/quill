@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react'
 
-import { getPrimaryKey, insertRow, updateRow } from '@/lib/tauri'
+import { deleteRows, getPrimaryKey, insertRow, updateRow } from '@/lib/tauri'
 import { toast } from '@/lib/toast'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import type { CellEdit } from '@/types/editing'
@@ -12,10 +12,17 @@ export function useInlineEditing() {
   const addPendingChange = useWorkspaceManagerStore((s) => s.addPendingChange)
   const clearPendingChanges = useWorkspaceManagerStore((s) => s.clearPendingChanges)
   const clearPendingNewRows = useWorkspaceManagerStore((s) => s.clearPendingNewRows)
+  const clearPendingDeletes = useWorkspaceManagerStore((s) => s.clearPendingDeletes)
+  const updatePendingNewRow = useWorkspaceManagerStore((s) => s.updatePendingNewRow)
   const setEditingCell = useWorkspaceManagerStore((s) => s.setEditingCell)
   const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
 
-  const editingState = activeTab?.editingState
+  // Subscribe directly to editingState for proper reactivity
+  const editingState = useWorkspaceManagerStore((s) => {
+    const ws = s.getActiveWorkspace()
+    if (!ws || !ws.activeTabId) return null
+    return ws.tabs[ws.activeTabId]?.editingState ?? null
+  })
   const isTableMode = activeTab?.type === 'table'
 
   // Extract for stable dependencies
@@ -54,6 +61,26 @@ export function useInlineEditing() {
     (rowIndex: number, columnName: string, newValue: unknown, columnType: string) => {
       if (!workspaceId || !tabId || !tabResult) return
 
+      // Get fresh pendingNewRows from store (avoid stale closure)
+      const currentTab = useWorkspaceManagerStore.getState().workspaces[workspaceId]?.tabs[tabId]
+      const pendingNewRows = currentTab?.editingState?.pendingNewRows ?? []
+
+      const existingRowCount = tabResult.rows.length
+
+      // Check if this is editing a pending new row (rowIndex >= existing rows count)
+      if (rowIndex >= existingRowCount) {
+        const pendingRowIndex = rowIndex - existingRowCount
+        const pendingRow = pendingNewRows[pendingRowIndex]
+
+        if (pendingRow) {
+          // Update the pending new row's values directly
+          updatePendingNewRow(workspaceId, tabId, pendingRow.tempId, columnName, newValue)
+          setEditingCell(workspaceId, tabId, null)
+          return
+        }
+      }
+
+      // Editing an existing row - use pendingChanges
       const originalValue = tabResult.rows[rowIndex]?.[tabResult.columns.findIndex((c) => c.name === columnName)]
 
       if (originalValue === newValue) {
@@ -72,7 +99,7 @@ export function useInlineEditing() {
       addPendingChange(workspaceId, tabId, change)
       setEditingCell(workspaceId, tabId, null)
     },
-    [workspaceId, tabId, tabResult, addPendingChange, setEditingCell]
+    [workspaceId, tabId, tabResult, addPendingChange, updatePendingNewRow, setEditingCell]
   )
 
   const cancelEditing = useCallback(() => {
@@ -84,19 +111,21 @@ export function useInlineEditing() {
   const savePendingChanges = useCallback(async () => {
     if (!workspaceId || !workspaceTabs) return
 
-    // Collect all tabs with pending changes or pending new rows
+    // Collect all tabs with pending changes, new rows, or deletes
     const allTabs = Object.values(workspaceTabs)
     const tabsWithChanges = allTabs.filter((tab) => {
       if (tab.type !== 'table' || !tab.tableName) return false
       const changes = tab.editingState?.pendingChanges ?? {}
       const newRows = tab.editingState?.pendingNewRows ?? []
-      return Object.keys(changes).length > 0 || newRows.length > 0
+      const deletes = tab.editingState?.pendingDeletes ?? []
+      return Object.keys(changes).length > 0 || newRows.length > 0 || deletes.length > 0
     })
 
     if (tabsWithChanges.length === 0) return
 
     let totalRowsUpdated = 0
     let totalRowsInserted = 0
+    let totalRowsDeleted = 0
     const errors: string[] = []
 
     try {
@@ -167,19 +196,43 @@ export function useInlineEditing() {
 
           for (const pendingRow of pendingNewRows) {
             try {
-              const columnValues = Object.entries(pendingRow.values).map(([column, value]) => ({
-                column,
-                value,
-              }))
+              // Filter out null values (for auto-generated columns like id/serial)
+              const columnValues = Object.entries(pendingRow.values)
+                .filter(([, value]) => value !== null && value !== undefined)
+                .map(([column, value]) => ({
+                  column,
+                  value,
+                }))
+
+              // Skip if no values to insert
+              if (columnValues.length === 0) {
+                console.warn('[savePendingChanges] Skipping row with no values:', pendingRow.tempId)
+                continue
+              }
+
+              console.log('[savePendingChanges] Inserting row:', {
+                table: tabTableName,
+                tempId: pendingRow.tempId,
+                columnValues,
+                rawValues: pendingRow.values,
+              })
 
               const insertResult = await insertRow(workspaceId, tabTableName, columnValues)
+              console.log('[savePendingChanges] Insert result:', insertResult)
+
               if (insertResult.rows.length > 0) {
                 insertedRows.push(insertResult.rows[0] as (string | number | boolean | null)[])
                 totalRowsInserted++
               }
             } catch (e) {
-              const errMsg = e instanceof Error ? e.message : String(e)
-              errors.push(`Insert failed: ${errMsg}`)
+              const errMsg = e instanceof Error ? e.message : JSON.stringify(e)
+              console.error('[savePendingChanges] Insert error:', {
+                table: tabTableName,
+                pendingRow,
+                error: e,
+                errorStr: errMsg,
+              })
+              errors.push(`Insert into ${tabTableName} failed: ${errMsg}`)
             }
           }
 
@@ -193,15 +246,59 @@ export function useInlineEditing() {
 
           clearPendingNewRows(workspaceId, tab.id)
         }
+
+        // Handle row deletions
+        const pendingDeletes = tab.editingState?.pendingDeletes ?? []
+        if (pendingDeletes.length > 0 && tabResultData) {
+          const primaryKeys = tab.editingState?.primaryKeyColumns ?? []
+
+          if (primaryKeys.length === 0) {
+            errors.push(`${tabTableName}: No primary key found for deletes`)
+          } else {
+            try {
+              // Build primary key values for each row to delete
+              const rowsToDelete = pendingDeletes.map((rowIndex) => {
+                const row = tabResultData.rows[rowIndex]
+                return primaryKeys.map((pkCol: string) => {
+                  const colIndex = tabResultData.columns.findIndex((c: { name: string }) => c.name === pkCol)
+                  return { column: pkCol, value: row[colIndex] }
+                })
+              })
+
+              await deleteRows(workspaceId, tabTableName, rowsToDelete)
+
+              // Remove deleted rows from local result (sort indices descending to avoid shifting)
+              const sortedIndices = [...pendingDeletes].sort((a, b) => b - a)
+              const newRows = [...tabResultData.rows]
+              for (const idx of sortedIndices) {
+                newRows.splice(idx, 1)
+              }
+
+              setTabResult(workspaceId, tab.id, {
+                ...tabResultData,
+                rows: newRows,
+              })
+
+              totalRowsDeleted += pendingDeletes.length
+            } catch (e) {
+              const errMsg = e instanceof Error ? e.message : JSON.stringify(e)
+              errors.push(`Delete from ${tabTableName} failed: ${errMsg}`)
+            }
+          }
+
+          clearPendingDeletes(workspaceId, tab.id)
+        }
       }
 
       // Build success message
       const parts: string[] = []
       if (totalRowsUpdated > 0) parts.push(`Updated ${totalRowsUpdated} row(s)`)
       if (totalRowsInserted > 0) parts.push(`Inserted ${totalRowsInserted} row(s)`)
+      if (totalRowsDeleted > 0) parts.push(`Deleted ${totalRowsDeleted} row(s)`)
 
       if (errors.length > 0) {
-        toast.error(`Some operations failed: ${errors.slice(0, 2).join(', ')}${errors.length > 2 ? '...' : ''}`)
+        // Show first error in full for better debugging
+        toast.error(errors[0])
       } else if (parts.length > 0) {
         const tableCount = tabsWithChanges.length
         toast.success(`${parts.join(', ')}${tableCount > 1 ? ` in ${tableCount} tables` : ''}`)
@@ -210,25 +307,29 @@ export function useInlineEditing() {
       console.error('Failed to save changes:', error)
       toast.error(`Failed to save changes: ${error}`)
     }
-  }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows, setTabResult])
+  }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows, clearPendingDeletes, setTabResult])
 
   // Discard ALL pending changes across ALL table tabs in the workspace
   const discardPendingChanges = useCallback(() => {
     if (!workspaceId || !workspaceTabs) return
 
-    // Clear pending changes and new rows from all table tabs
+    // Clear pending changes, new rows, and deletes from all table tabs
     for (const tab of Object.values(workspaceTabs)) {
       if (tab.type !== 'table') continue
       const changes = tab.editingState?.pendingChanges ?? {}
       const newRows = tab.editingState?.pendingNewRows ?? []
+      const deletes = tab.editingState?.pendingDeletes ?? []
       if (Object.keys(changes).length > 0) {
         clearPendingChanges(workspaceId, tab.id)
       }
       if (newRows.length > 0) {
         clearPendingNewRows(workspaceId, tab.id)
       }
+      if (deletes.length > 0) {
+        clearPendingDeletes(workspaceId, tab.id)
+      }
     }
-  }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows])
+  }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows, clearPendingDeletes])
 
   return {
     isTableMode,

@@ -15,6 +15,7 @@ export interface EditingState {
   primaryKeyColumns: string[]
   pendingChanges: Record<string, CellEdit> // key: `${rowIndex}-${columnName}`
   pendingNewRows: PendingNewRow[] // New rows to be inserted on save
+  pendingDeletes: number[] // Row indices marked for deletion
   editingCell: { rowIndex: number; columnIndex: number } | null
 }
 

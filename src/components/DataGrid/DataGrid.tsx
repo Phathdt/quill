@@ -37,6 +37,7 @@ export function DataGrid() {
   const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
   const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
   const addPendingNewRows = useWorkspaceManagerStore((s) => s.addPendingNewRows)
+  const addPendingDeletes = useWorkspaceManagerStore((s) => s.addPendingDeletes)
   const parentRef = useRef<HTMLDivElement>(null)
   const { applyFilters } = useTableFilter()
 
@@ -56,6 +57,9 @@ export function DataGrid() {
   // Focused cell for arrow key navigation
   const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null)
 
+  // Click timeout ref to differentiate single-click from double-click
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -69,11 +73,19 @@ export function DataGrid() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Inline editing hook
-  const { isTableMode, editingState, startEditing, commitCellEdit, cancelEditing, savePendingChanges, discardPendingChanges } =
-    useInlineEditing()
+  const {
+    isTableMode,
+    editingState,
+    startEditing,
+    commitCellEdit,
+    cancelEditing,
+    savePendingChanges,
+    discardPendingChanges,
+  } = useInlineEditing()
 
-  // Get pending new rows from editing state
+  // Get pending new rows and deletes from editing state
   const pendingNewRows = useMemo(() => editingState?.pendingNewRows ?? [], [editingState?.pendingNewRows])
+  const pendingDeletes = useMemo(() => new Set(editingState?.pendingDeletes ?? []), [editingState?.pendingDeletes])
 
   // Combine existing rows with pending new rows for display
   const data = useMemo(() => {
@@ -122,26 +134,14 @@ export function DataGrid() {
       meta: { columnIndex: idx, columnName: col.name, columnType: col.typeName },
       cell: (info: { getValue: () => unknown; row: { index: number } }) => {
         const rowIndex = info.row.index
-        const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.columnIndex === idx
         const pendingValue = getCellPendingValue(rowIndex, col.name)
         const hasPending = pendingValue !== undefined
 
         // Get display value (pending or original)
         const displayValue = hasPending ? pendingValue : info.getValue()
 
-        // In table mode, cells are editable
+        // In table mode, cells show pending state styling
         if (isTableMode) {
-          if (isEditing) {
-            return (
-              <EditingInput
-                initialValue={displayValue}
-                columnType={col.typeName}
-                onCommit={(newValue) => commitCellEdit(rowIndex, col.name, newValue, col.typeName)}
-                onCancel={cancelEditing}
-              />
-            )
-          }
-
           return (
             <div className={`truncate ${hasPending ? 'bg-amber-500/20 border-l-2 border-amber-500 pl-2 -ml-1' : ''}`}>
               <CellValue value={displayValue} />
@@ -195,16 +195,7 @@ export function DataGrid() {
     }
 
     return dataColumns
-  }, [
-    result?.columns,
-    isTableMode,
-    selectedRows,
-    data,
-    editingCell,
-    getCellPendingValue,
-    commitCellEdit,
-    cancelEditing,
-  ])
+  }, [result?.columns, isTableMode, selectedRows, data, getCellPendingValue])
 
   const table = useReactTable({
     data,
@@ -389,7 +380,9 @@ export function DataGrid() {
     let columnMapping: number[]
     if (isHeader) {
       // Map by column names
-      columnMapping = firstRow.map((name) => result.columns.findIndex((c) => c.name.toLowerCase() === name.toLowerCase()))
+      columnMapping = firstRow.map((name) =>
+        result.columns.findIndex((c) => c.name.toLowerCase() === name.toLowerCase())
+      )
     } else {
       // Map by position
       columnMapping = result.columns.map((_, idx) => idx)
@@ -491,10 +484,35 @@ export function DataGrid() {
         await handlePasteRows()
       }
 
-      // Save pending changes
-      if ((e.metaKey || e.ctrlKey) && e.key === 's' && Object.keys(pendingChanges).length > 0) {
-        e.preventDefault()
-        savePendingChanges()
+      // Save pending changes (edits, new rows, or deletes)
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        const hasEdits = Object.keys(pendingChanges).length > 0
+        const hasNewRows = pendingNewRows.length > 0
+        const hasDeletes = pendingDeletes.size > 0
+        if (hasEdits || hasNewRows || hasDeletes) {
+          e.preventDefault()
+          savePendingChanges()
+        }
+      }
+
+      // Mark selected rows for deletion (Cmd+X, Delete, or Backspace) - only in table mode
+      if (isTableMode && !editingCell && selectedRows.size > 0) {
+        const isDeleteKey = e.key === 'Delete' || e.key === 'Backspace' || ((e.metaKey || e.ctrlKey) && e.key === 'x')
+        if (isDeleteKey && activeWorkspace && activeTab) {
+          e.preventDefault()
+          // Get existing row count (not including pending new rows)
+          const existingRowCount = result?.rows?.length ?? 0
+          // Filter to only include existing rows (not pending new rows) and not already pending delete
+          const rowsToDelete = Array.from(selectedRows).filter(
+            (idx) => idx < existingRowCount && !pendingDeletes.has(idx)
+          )
+          if (rowsToDelete.length > 0) {
+            addPendingDeletes(activeWorkspace.id, activeTab.id, rowsToDelete)
+            toast.success(`${rowsToDelete.length} row(s) marked for deletion (Cmd+S to apply)`)
+            // Clear selection after marking for delete
+            setSelectedRows(new Set())
+          }
+        }
       }
 
       // Cancel editing
@@ -604,12 +622,17 @@ export function DataGrid() {
     result,
     editingCell,
     pendingChanges,
+    pendingNewRows,
+    pendingDeletes,
     savePendingChanges,
     cancelEditing,
     isTableMode,
     handlePasteRows,
     focusedCell,
     startEditing,
+    activeWorkspace,
+    activeTab,
+    addPendingDeletes,
   ])
 
   if (!activeTab) {
@@ -703,7 +726,11 @@ export function DataGrid() {
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {sortDirection && (
                             <span className='ml-1'>
-                              {sortDirection === 'asc' ? <ChevronUp className='h-3 w-3' /> : <ChevronDown className='h-3 w-3' />}
+                              {sortDirection === 'asc' ? (
+                                <ChevronUp className='h-3 w-3' />
+                              ) : (
+                                <ChevronDown className='h-3 w-3' />
+                              )}
                             </span>
                           )}
                         </div>
@@ -739,18 +766,21 @@ export function DataGrid() {
                 const isRowSelected = selectedRows.has(virtualRow.index) || selectedRowIndex === virtualRow.index
                 const isEvenRow = virtualRow.index % 2 === 0
                 const isPendingNewRow = row.original.__isPendingNew === true
+                const isPendingDelete = pendingDeletes.has(virtualRow.index)
                 return (
                   <div
                     key={row.id}
                     data-index={virtualRow.index}
                     className={`flex border-b border-border hover:bg-accent transition-colors absolute left-0 cursor-pointer ${
-                      isPendingNewRow
-                        ? 'bg-emerald-500/10 border-l-2 border-l-emerald-500'
-                        : isRowSelected
-                          ? 'bg-accent/50'
-                          : isEvenRow
-                            ? 'bg-background'
-                            : 'bg-muted'
+                      isPendingDelete
+                        ? 'bg-red-500/20 border-l-2 border-l-red-500 line-through opacity-60'
+                        : isPendingNewRow
+                          ? 'bg-emerald-500/10 border-l-2 border-l-emerald-500'
+                          : isRowSelected
+                            ? 'bg-accent/50'
+                            : isEvenRow
+                              ? 'bg-background'
+                              : 'bg-muted'
                     }`}
                     style={{
                       height: `${virtualRow.size}px`,
@@ -764,17 +794,50 @@ export function DataGrid() {
                         | { columnIndex: number; columnName: string; columnType: string }
                         | undefined
                       const isFocused = focusedCell?.row === virtualRow.index && focusedCell?.col === colIndex
+                      const isEditing =
+                        meta &&
+                        editingCell?.rowIndex === virtualRow.index &&
+                        editingCell?.columnIndex === meta.columnIndex
+
+                      // Get the display value for editing
+                      const cellValue = cell.getValue()
+                      const pendingValue = meta ? getCellPendingValue(virtualRow.index, meta.columnName) : undefined
+                      const displayValue = pendingValue !== undefined ? pendingValue : cellValue
+
                       return (
                         <div
                           key={cell.id}
-                          className={`px-3 py-1.5 text-foreground font-mono text-xs truncate flex items-center border-r border-border last:border-r-0 flex-shrink-0 ${
+                          className={`relative px-3 py-1.5 text-foreground font-mono text-xs truncate flex items-center border-r border-border last:border-r-0 shrink-0 ${
                             isTableMode && meta ? 'cursor-text' : ''
                           } ${isFocused ? 'ring-2 ring-primary ring-inset' : ''}`}
                           style={{ width: cell.column.getSize(), minWidth: cell.column.getSize() }}
+                          onClick={(e) => {
+                            // Stop propagation so row click doesn't interfere
+                            if (isTableMode && meta) {
+                              e.stopPropagation()
+                              // Set focus immediately
+                              setFocusedCell({ row: virtualRow.index, col: colIndex })
+                              // Delay row selection to not interfere with double-click
+                              if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
+                                if (clickTimeoutRef.current) {
+                                  clearTimeout(clickTimeoutRef.current)
+                                }
+                                clickTimeoutRef.current = setTimeout(() => {
+                                  setSelectedRowIndex(virtualRow.index)
+                                  setSelectedRows(new Set([virtualRow.index]))
+                                }, 200)
+                              }
+                            }
+                          }}
                           onDoubleClick={(e) => {
                             // In table mode, double-click cell to edit
                             if (isTableMode && meta) {
                               e.stopPropagation()
+                              // Cancel the delayed row selection
+                              if (clickTimeoutRef.current) {
+                                clearTimeout(clickTimeoutRef.current)
+                                clickTimeoutRef.current = null
+                              }
                               startEditing(virtualRow.index, meta.columnIndex)
                             }
                           }}
@@ -788,7 +851,18 @@ export function DataGrid() {
                             })
                           }}
                         >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          {isEditing && meta ? (
+                            <EditingInput
+                              initialValue={displayValue}
+                              columnType={meta.columnType}
+                              onCommit={(newValue) =>
+                                commitCellEdit(virtualRow.index, meta.columnName, newValue, meta.columnType)
+                              }
+                              onCancel={cancelEditing}
+                            />
+                          ) : (
+                            flexRender(cell.column.columnDef.cell, cell.getContext())
+                          )}
                         </div>
                       )
                     })}
@@ -863,8 +937,12 @@ function EditingInput({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault()
+      e.stopPropagation()
       onCommit(parseInputValue(value, columnType))
     } else if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
       onCancel()
     }
   }
@@ -901,9 +979,23 @@ function parseInputValue(value: string, columnType: string): unknown {
     return isNaN(num) ? value : num
   }
 
-  if (lowerType.includes('float') || lowerType.includes('double') || lowerType.includes('numeric') || lowerType.includes('decimal')) {
+  if (
+    lowerType.includes('float') ||
+    lowerType.includes('double') ||
+    lowerType.includes('numeric') ||
+    lowerType.includes('decimal')
+  ) {
     const num = parseFloat(value)
     return isNaN(num) ? value : num
+  }
+
+  // JSON/JSONB - parse to object
+  if (lowerType.includes('json')) {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return value
+    }
   }
 
   return value
@@ -932,16 +1024,23 @@ function parseValueForInsert(value: string, columnType: string): unknown {
   }
 
   // Float/decimal types
-  if (lowerType.includes('float') || lowerType.includes('double') || lowerType.includes('numeric') || lowerType.includes('decimal') || lowerType.includes('real')) {
+  if (
+    lowerType.includes('float') ||
+    lowerType.includes('double') ||
+    lowerType.includes('numeric') ||
+    lowerType.includes('decimal') ||
+    lowerType.includes('real')
+  ) {
     const num = parseFloat(trimmed)
     return isNaN(num) ? null : num
   }
 
-  // JSON/JSONB
+  // JSON/JSONB - must parse to object for PostgreSQL
   if (lowerType.includes('json')) {
     try {
       return JSON.parse(trimmed)
     } catch {
+      // Return as-is - will fail at DB level if invalid
       return trimmed
     }
   }

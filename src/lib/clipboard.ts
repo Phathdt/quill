@@ -1,13 +1,27 @@
 import type { Column } from '@/types/database'
 
 /**
- * Format value for clipboard (handle null/undefined)
+ * Format value for clipboard as TSV (handle null/undefined/objects)
+ * Fields containing tabs, newlines, or quotes must be quoted and escaped
  */
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) {
     return ''
   }
-  return String(value)
+
+  let str: string
+  if (typeof value === 'object') {
+    str = JSON.stringify(value)
+  } else {
+    str = String(value)
+  }
+
+  // TSV/CSV escaping: quote fields containing special characters
+  if (str.includes('\t') || str.includes('\n') || str.includes('\r') || str.includes('"')) {
+    // Escape double quotes by doubling them, then wrap in quotes
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
 }
 
 /**
@@ -52,14 +66,19 @@ function parseCSVLine(line: string, delimiter: string = ','): string[] {
 
 /**
  * Detect delimiter (comma, tab, or semicolon)
+ * Prefers tab since we copy as TSV - only use comma/semicolon if no tabs found
  */
 function detectDelimiter(text: string): string {
   const firstLine = text.split('\n')[0] || ''
   const tabCount = (firstLine.match(/\t/g) || []).length
+
+  // If there are any tabs, use tab delimiter (our copy format is TSV)
+  if (tabCount > 0) return '\t'
+
+  // Fallback to comma or semicolon for external data
   const commaCount = (firstLine.match(/,/g) || []).length
   const semicolonCount = (firstLine.match(/;/g) || []).length
 
-  if (tabCount >= commaCount && tabCount >= semicolonCount) return '\t'
   if (semicolonCount > commaCount) return ';'
   return ','
 }
@@ -142,7 +161,8 @@ export async function copyRowsToClipboard(rows: unknown[][], columns: Column[]):
  */
 function escapeCSVValue(value: unknown): string {
   if (value === null || value === undefined) return ''
-  const str = String(value)
+  // Handle objects (JSONB) - stringify them
+  const str = typeof value === 'object' ? JSON.stringify(value) : String(value)
   // Quote if contains comma, quote, or newline
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`
@@ -154,10 +174,8 @@ function escapeCSVValue(value: unknown): string {
  * Format rows as CSV (RFC 4180 compliant)
  */
 export function formatAsCSV(rows: unknown[][], columns: Column[]): string {
-  const header = columns.map(col => escapeCSVValue(col.name)).join(',')
-  const dataRows = rows.map(row =>
-    row.map(cell => escapeCSVValue(cell)).join(',')
-  )
+  const header = columns.map((col) => escapeCSVValue(col.name)).join(',')
+  const dataRows = rows.map((row) => row.map((cell) => escapeCSVValue(cell)).join(','))
   return [header, ...dataRows].join('\n')
 }
 
@@ -179,7 +197,7 @@ export async function copyAsCSV(rows: unknown[][], columns: Column[]): Promise<b
  * Format rows as JSON array of objects
  */
 export function formatAsJSON(rows: unknown[][], columns: Column[]): string {
-  const objects = rows.map(row => {
+  const objects = rows.map((row) => {
     const obj: Record<string, unknown> = {}
     columns.forEach((col, idx) => {
       obj[col.name] = row[idx]

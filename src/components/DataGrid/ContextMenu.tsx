@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { copyCellToClipboard, copyRowsToClipboard, copyRowToClipboard, copyAsCSV, copyAsJSON } from '@/lib/clipboard'
+import { copyAsCSV, copyAsJSON, copyCellToClipboard, copyRowsToClipboard, copyRowToClipboard } from '@/lib/clipboard'
 import type { Column } from '@/types/database'
 import { Copy, FileJson, FileSpreadsheet } from 'lucide-react'
 
@@ -69,13 +69,13 @@ export function ContextMenu({ x, y, onClose, cellValue, rowData, allRows, column
   }
 
   const handleCopyAllAsCSV = () => {
-    const rowArrays = allRows.map(row => columns.map((_, idx) => row[String(idx)]))
+    const rowArrays = allRows.map((row) => columns.map((_, idx) => row[String(idx)]))
     copyAsCSV(rowArrays, columns)
     onClose()
   }
 
   const handleCopyAllAsJSON = () => {
-    const rowArrays = allRows.map(row => columns.map((_, idx) => row[String(idx)]))
+    const rowArrays = allRows.map((row) => columns.map((_, idx) => row[String(idx)]))
     copyAsJSON(rowArrays, columns)
     onClose()
   }

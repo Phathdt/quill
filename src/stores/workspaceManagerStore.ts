@@ -64,7 +64,10 @@ interface WorkspaceManagerStore extends WorkspaceManagerState {
   clearPendingChanges: (workspaceId: string, tabId: string) => void
   setEditingCell: (workspaceId: string, tabId: string, cell: { rowIndex: number; columnIndex: number } | null) => void
   addPendingNewRows: (workspaceId: string, tabId: string, rows: PendingNewRow[]) => void
+  updatePendingNewRow: (workspaceId: string, tabId: string, tempId: string, columnName: string, value: unknown) => void
   clearPendingNewRows: (workspaceId: string, tabId: string) => void
+  addPendingDeletes: (workspaceId: string, tabId: string, rowIndices: number[]) => void
+  clearPendingDeletes: (workspaceId: string, tabId: string) => void
 
   // Selectors
   getActiveWorkspace: () => Workspace | null
@@ -82,7 +85,16 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
   // Workspace CRUD
   createWorkspace: (connection) => {
     const state = get()
-    if (state.workspaceOrder.length >= MAX_WORKSPACES) return null
+    console.log('[WorkspaceManager] createWorkspace called')
+    console.log('[WorkspaceManager] Current state:', {
+      workspaceCount: state.workspaceOrder.length,
+      workspaceIds: state.workspaceOrder,
+      activeWorkspaceId: state.activeWorkspaceId,
+    })
+    if (state.workspaceOrder.length >= MAX_WORKSPACES) {
+      console.log('[WorkspaceManager] MAX_WORKSPACES limit reached:', MAX_WORKSPACES)
+      return null
+    }
 
     const workspaceId = nanoid()
     const defaultTab = createDefaultTab()
@@ -622,6 +634,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                   primaryKeyColumns: columns,
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -654,6 +667,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                     [key]: change,
                   },
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -683,6 +697,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                   primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
                   pendingChanges: restChanges,
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -711,6 +726,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                   primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
                   pendingChanges: {},
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
                   editingCell: null,
                 },
               },
@@ -739,6 +755,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                   primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
                   editingCell: cell,
                 },
               },
@@ -768,6 +785,52 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                   primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: [...existingRows, ...rows],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  updatePendingNewRow: (workspaceId, tabId, tempId, columnName, value) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const existingRows = tab.editingState?.pendingNewRows ?? []
+
+      // Find and update the row with matching tempId
+      const updatedRows = existingRows.map((row) => {
+        if (row.tempId === tempId) {
+          return {
+            ...row,
+            values: {
+              ...row.values,
+              [columnName]: value,
+            },
+          }
+        }
+        return row
+      })
+
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: updatedRows,
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -796,6 +859,68 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                   primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: [],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  addPendingDeletes: (workspaceId, tabId, rowIndices) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const currentDeletes = tab.editingState?.pendingDeletes ?? []
+      // Merge and dedupe
+      const merged = [...new Set([...currentDeletes, ...rowIndices])]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: merged,
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  clearPendingDeletes: (workspaceId, tabId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },

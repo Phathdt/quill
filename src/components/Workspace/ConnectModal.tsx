@@ -21,7 +21,9 @@ export function ConnectModal({ open, onClose }: ConnectModalProps) {
 
   const connections = useConnectionStore((s) => s.connections)
   const createWorkspace = useWorkspaceManagerStore((s) => s.createWorkspace)
+  const closeWorkspace = useWorkspaceManagerStore((s) => s.closeWorkspace)
   const setWorkspaceConnected = useWorkspaceManagerStore((s) => s.setWorkspaceConnected)
+  const workspaceCount = useWorkspaceManagerStore((s) => s.workspaceOrder.length)
 
   const handleSelect = async (connectionId: string) => {
     const connection = connections.find((c) => c.id === connectionId)
@@ -33,7 +35,7 @@ export function ConnectModal({ open, onClose }: ConnectModalProps) {
     // Create new workspace
     const workspaceId = createWorkspace(connection)
     if (!workspaceId) {
-      setError('Maximum 5 workspaces allowed')
+      setError(`Maximum 5 workspaces allowed (currently ${workspaceCount} open). Close some workspaces first.`)
       setLoading(null)
       return
     }
@@ -49,8 +51,9 @@ export function ConnectModal({ open, onClose }: ConnectModalProps) {
       setWorkspaceConnected(workspaceId, true)
       onClose()
     } catch (err) {
+      // Clean up the workspace if connection failed
+      closeWorkspace(workspaceId)
       setError(getErrorMessage(err))
-      setWorkspaceConnected(workspaceId, false)
     } finally {
       setLoading(null)
     }

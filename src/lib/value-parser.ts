@@ -56,5 +56,13 @@ export function parseValue(rawValue: string, typeName: string): unknown {
 export function formatValue(value: unknown): string {
   if (value === null) return 'NULL'
   if (typeof value === 'boolean') return String(value)
+  if (typeof value === 'object') {
+    // Handle JSON/JSONB objects - stringify them for display
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return '[Object]'
+    }
+  }
   return String(value)
 }

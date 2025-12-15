@@ -22,7 +22,8 @@ A fast, lightweight, open-source database GUI built with Tauri + React + TypeScr
   - Color-coded by database type (PostgreSQL=blue, SQLite=green)
   - Instant workspace switching (<100ms)
 - **Query Editor:** Monaco-based with syntax highlighting, Cmd+Enter execution
-- **Data Grid:** Virtual scrolling (handles 10k+ rows), type-aware formatting
+- **Data Grid:** Virtual scrolling (handles 10k+ rows), type-aware formatting, JSONB support
+- **Inline Editing:** Edit cells, insert/delete rows with pending changeset (preview SQL before apply)
 - **Multi-tab:** Multiple query tabs per workspace
 - **Connections:** Save, test, and manage database connections
 - **Dark Theme:** Modern cyberpunk-inspired UI
@@ -72,8 +73,9 @@ Replace TablePlus for daily work.
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| Inline cell editing | P0 | ✅ |
-| Insert/delete rows UI | P0 | ✅ |
+| Inline cell editing (with SQL preview) | P0 | ✅ |
+| Insert/delete rows UI (pending changeset) | P0 | ✅ |
+| Copy/paste rows (TSV clipboard) | P0 | ✅ |
 | MySQL support | P0 | ⬜ | <!-- Stays in Phase 2 per user decision -->
 | SSH tunneling | P1 | ⬜ |
 | SSL connections | P1 | ✅ |

@@ -190,6 +190,7 @@ pub async fn insert_row(
 
     match &conn_info.pool {
         DbPool::Postgres(pool) => {
+            use crate::db::executor::extract_postgres_value;
             use sqlx::{postgres::PgArguments, query::Query, Postgres, Row, Column as SqlxColumn, TypeInfo};
 
             let columns: Vec<String> = values.iter().map(|v| format!("\"{}\"", v.column)).collect();
@@ -211,7 +212,7 @@ pub async fn insert_row(
             let rows = query.fetch_all(pool).await?;
 
             // Convert rows to QueryResult (similar to execute_postgres in executor.rs)
-            let columns = if let Some(first_row) = rows.first() {
+            let columns: Vec<crate::models::query_result::Column> = if let Some(first_row) = rows.first() {
                 first_row.columns().iter().map(|col: &<Postgres as sqlx::Database>::Column| crate::models::query_result::Column {
                     name: col.name().to_string(),
                     type_name: col.type_info().name().to_string(),
@@ -220,11 +221,21 @@ pub async fn insert_row(
                 vec![]
             };
 
-            let result_rows = vec![]; // Simplified - could extract if needed
+            // Extract the returned row data
+            let mut result_rows = Vec::new();
+            for row in &rows {
+                let mut result_row = Vec::new();
+                for (i, _col) in row.columns().iter().enumerate() {
+                    let value = extract_postgres_value(row, i);
+                    result_row.push(value);
+                }
+                result_rows.push(result_row);
+            }
+
             Ok(QueryResult {
                 columns,
                 rows: result_rows,
-                rows_affected: 1,
+                rows_affected: rows.len() as u64,
                 execution_time_ms: 0,
             })
         }
@@ -513,6 +524,7 @@ pub async fn update_row(
 
 // Helper to add JSON value to PostgreSQL arguments
 fn add_value_to_args(args: &mut sqlx::postgres::PgArguments, value: &serde_json::Value) {
+    use chrono::NaiveDateTime;
     use sqlx::Arguments;
     match value {
         serde_json::Value::Null => args.add(None::<String>),
@@ -526,9 +538,20 @@ fn add_value_to_args(args: &mut sqlx::postgres::PgArguments, value: &serde_json:
                 args.add(n.to_string())
             }
         }
-        serde_json::Value::String(s) => args.add(s.clone()),
+        serde_json::Value::String(s) => {
+            // Try to parse as timestamp (format: "2025-12-10 07:48:17.276")
+            if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f") {
+                args.add(dt)
+            } else if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+                args.add(dt)
+            } else {
+                // Regular string
+                args.add(s.clone())
+            }
+        }
+        // Pass JSON objects/arrays directly for JSONB columns
         serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-            args.add(value.to_string())
+            args.add(value.clone())
         }
     };
 }

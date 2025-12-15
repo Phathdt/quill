@@ -70,11 +70,7 @@ export async function updateRow(
   return invoke<number>('update_row', { workspaceId, tableName, primaryKeys, updates })
 }
 
-export async function insertRow(
-  workspaceId: string,
-  tableName: string,
-  values: ColumnValue[]
-): Promise<QueryResult> {
+export async function insertRow(workspaceId: string, tableName: string, values: ColumnValue[]): Promise<QueryResult> {
   return invoke<QueryResult>('insert_row', { workspaceId, tableName, values })
 }
 
@@ -86,10 +82,6 @@ export async function deleteRow(
   return invoke<number>('delete_row', { workspaceId, tableName, primaryKeys })
 }
 
-export async function deleteRows(
-  workspaceId: string,
-  tableName: string,
-  rows: PrimaryKeyValue[][]
-): Promise<number> {
+export async function deleteRows(workspaceId: string, tableName: string, rows: PrimaryKeyValue[][]): Promise<number> {
   return invoke<number>('delete_rows', { workspaceId, tableName, rows })
 }
