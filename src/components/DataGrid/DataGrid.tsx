@@ -36,6 +36,7 @@ export function DataGrid() {
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
   const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
+  const addPendingNewRows = useWorkspaceManagerStore((s) => s.addPendingNewRows)
   const parentRef = useRef<HTMLDivElement>(null)
   const { applyFilters } = useTableFilter()
 
@@ -333,7 +334,7 @@ export function DataGrid() {
     }
   }
 
-  // Handle paste rows from clipboard
+  // Handle paste rows from clipboard - adds to pending new rows (not DB directly)
   const handlePasteRows = useCallback(async () => {
     if (!activeWorkspace || !activeTab?.tableName || !result?.columns) {
       toast.error('Cannot paste: No table selected')
@@ -371,57 +372,40 @@ export function DataGrid() {
       // Map by column names
       columnMapping = firstRow.map((name) => result.columns.findIndex((c) => c.name.toLowerCase() === name.toLowerCase()))
     } else {
-      // Map by position (skip auto-increment/serial columns if possible)
+      // Map by position
       columnMapping = result.columns.map((_, idx) => idx)
     }
 
-    let successCount = 0
-    let errorCount = 0
-    const newRows: (string | number | boolean | null)[][] = []
+    // Build pending new rows
+    const pendingRows: { tempId: string; values: Record<string, unknown> }[] = []
 
     for (const row of dataRows) {
-      try {
-        const columnValues: { column: string; value: unknown }[] = []
+      const values: Record<string, unknown> = {}
 
-        for (let i = 0; i < row.length && i < result.columns.length; i++) {
-          const colIdx = isHeader ? columnMapping[i] : i
-          if (colIdx === -1 || colIdx >= result.columns.length) continue
+      for (let i = 0; i < row.length && i < result.columns.length; i++) {
+        const colIdx = isHeader ? columnMapping[i] : i
+        if (colIdx === -1 || colIdx >= result.columns.length) continue
 
-          const col = result.columns[colIdx]
-          const value = row[i]
+        const col = result.columns[colIdx]
+        const value = row[i]
 
-          // Parse value based on column type
-          const parsedValue = parseValueForInsert(value, col.typeName)
-          columnValues.push({ column: col.name, value: parsedValue })
-        }
+        // Parse value based on column type
+        values[col.name] = parseValueForInsert(value, col.typeName)
+      }
 
-        if (columnValues.length > 0) {
-          const insertResult = await insertRow(activeWorkspace.id, activeTab.tableName, columnValues)
-          if (insertResult.rows.length > 0) {
-            newRows.push(insertResult.rows[0] as (string | number | boolean | null)[])
-            successCount++
-          }
-        }
-      } catch (e) {
-        console.error('Failed to insert row:', e)
-        errorCount++
+      if (Object.keys(values).length > 0) {
+        pendingRows.push({
+          tempId: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          values,
+        })
       }
     }
 
-    // Update local result with all new rows at once
-    if (newRows.length > 0) {
-      setTabResult(activeWorkspace.id, activeTab.id, {
-        ...result,
-        rows: [...result.rows, ...newRows],
-      })
+    if (pendingRows.length > 0) {
+      addPendingNewRows(activeWorkspace.id, activeTab.id, pendingRows)
+      toast.success(`${pendingRows.length} row(s) ready to save (Cmd+S)`)
     }
-
-    if (successCount > 0) {
-      toast.success(`Pasted ${successCount} row(s)${errorCount > 0 ? `, ${errorCount} failed` : ''}`)
-    } else if (errorCount > 0) {
-      toast.error(`Failed to paste rows: ${errorCount} error(s)`)
-    }
-  }, [activeWorkspace, activeTab, result, setTabResult])
+  }, [activeWorkspace, activeTab, result, addPendingNewRows])
 
   // Scroll focused cell into view
   useEffect(() => {

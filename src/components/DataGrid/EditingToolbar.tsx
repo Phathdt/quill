@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
-import type { CellEdit } from '@/types/editing'
+import type { CellEdit, PendingNewRow } from '@/types/editing'
 import { Check, Code, X } from 'lucide-react'
 
 interface EditingToolbarProps {
@@ -15,6 +15,7 @@ interface TableChange {
   tabId: string
   tableName: string
   changes: CellEdit[]
+  newRows: PendingNewRow[]
   primaryKeys: string[]
   columns: { name: string }[]
   rows: unknown[][]
@@ -25,7 +26,7 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
   const workspaceTabs = activeWorkspace?.tabs
   const [showSqlPreview, setShowSqlPreview] = useState(false)
 
-  // Collect all pending changes from all table tabs in the workspace
+  // Collect all pending changes and new rows from all table tabs in the workspace
   const allTableChanges = useMemo((): TableChange[] => {
     if (!workspaceTabs) return []
 
@@ -36,13 +37,15 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
 
       const pendingChanges = tab.editingState?.pendingChanges ?? {}
       const changesList = Object.values(pendingChanges) as CellEdit[]
+      const pendingNewRows = tab.editingState?.pendingNewRows ?? []
 
-      if (changesList.length === 0) continue
+      if (changesList.length === 0 && pendingNewRows.length === 0) continue
 
       changes.push({
         tabId: tab.id,
         tableName: tab.tableName,
         changes: changesList,
+        newRows: pendingNewRows,
         primaryKeys: tab.editingState?.primaryKeyColumns ?? [],
         columns: tab.result?.columns ?? [],
         rows: tab.result?.rows ?? [],
@@ -52,16 +55,18 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
     return changes
   }, [workspaceTabs])
 
-  const totalPendingCount = allTableChanges.reduce((sum, tc) => sum + tc.changes.length, 0)
+  const totalPendingChanges = allTableChanges.reduce((sum, tc) => sum + tc.changes.length, 0)
+  const totalPendingInserts = allTableChanges.reduce((sum, tc) => sum + tc.newRows.length, 0)
+  const totalPendingCount = totalPendingChanges + totalPendingInserts
 
   if (totalPendingCount === 0) return null
 
   // Generate SQL preview for all pending changes across all tables
-  const generateSqlStatements = (): { tableName: string; sql: string }[] => {
-    const statements: { tableName: string; sql: string }[] = []
+  const generateSqlStatements = (): { tableName: string; sql: string; type: 'UPDATE' | 'INSERT' }[] => {
+    const statements: { tableName: string; sql: string; type: 'UPDATE' | 'INSERT' }[] = []
 
     for (const tableChange of allTableChanges) {
-      // Group changes by row
+      // Generate UPDATE statements for cell changes
       const changesByRow: Record<number, CellEdit[]> = {}
       for (const change of tableChange.changes) {
         if (!changesByRow[change.rowIndex]) {
@@ -89,6 +94,19 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
         statements.push({
           tableName: tableChange.tableName,
           sql: `UPDATE "public"."${tableChange.tableName}" SET ${setClauses} WHERE ${whereClauses};`,
+          type: 'UPDATE',
+        })
+      }
+
+      // Generate INSERT statements for new rows
+      for (const newRow of tableChange.newRows) {
+        const columns = Object.keys(newRow.values)
+        const values = Object.values(newRow.values)
+
+        statements.push({
+          tableName: tableChange.tableName,
+          sql: `INSERT INTO "public"."${tableChange.tableName}" (${columns.map((c) => `"${c}"`).join(', ')}) VALUES (${values.map((v) => formatSqlValue(v)).join(', ')});`,
+          type: 'INSERT',
         })
       }
     }
@@ -103,7 +121,9 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
     <>
       <div className='flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/30'>
         <span className='text-xs text-amber-400'>
-          {totalPendingCount} pending change{totalPendingCount > 1 ? 's' : ''}
+          {totalPendingChanges > 0 && `${totalPendingChanges} edit${totalPendingChanges > 1 ? 's' : ''}`}
+          {totalPendingChanges > 0 && totalPendingInserts > 0 && ', '}
+          {totalPendingInserts > 0 && `${totalPendingInserts} new row${totalPendingInserts > 1 ? 's' : ''}`}
           {affectedTables.length > 1 && (
             <span className='text-muted-foreground ml-1'>
               in {affectedTables.length} tables ({affectedTables.join(', ')})
@@ -186,7 +206,7 @@ function formatSqlValue(value: unknown): string {
 
 // Simple SQL syntax highlighting
 function highlightSql(sql: string): React.ReactNode {
-  const keywords = ['UPDATE', 'SET', 'WHERE', 'AND', 'OR', 'NULL', 'TRUE', 'FALSE']
+  const keywords = ['UPDATE', 'SET', 'WHERE', 'AND', 'OR', 'NULL', 'TRUE', 'FALSE', 'INSERT', 'INTO', 'VALUES']
   const parts: React.ReactNode[] = []
 
   let remaining = sql

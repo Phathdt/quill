@@ -6,9 +6,15 @@ export interface CellEdit {
   columnType: string
 }
 
+export interface PendingNewRow {
+  tempId: string
+  values: Record<string, unknown> // columnName -> value
+}
+
 export interface EditingState {
   primaryKeyColumns: string[]
   pendingChanges: Record<string, CellEdit> // key: `${rowIndex}-${columnName}`
+  pendingNewRows: PendingNewRow[] // New rows to be inserted on save
   editingCell: { rowIndex: number; columnIndex: number } | null
 }
 

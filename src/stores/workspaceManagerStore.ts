@@ -1,6 +1,6 @@
 import type { Connection } from '@/types/connection'
 import type { QueryResult } from '@/types/database'
-import type { CellEdit } from '@/types/editing'
+import type { CellEdit, PendingNewRow } from '@/types/editing'
 import type { DbType, Tab, TableFilter, Workspace, WorkspaceManagerState } from '@/types/workspace'
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
@@ -63,6 +63,8 @@ interface WorkspaceManagerStore extends WorkspaceManagerState {
   removePendingChange: (workspaceId: string, tabId: string, key: string) => void
   clearPendingChanges: (workspaceId: string, tabId: string) => void
   setEditingCell: (workspaceId: string, tabId: string, cell: { rowIndex: number; columnIndex: number } | null) => void
+  addPendingNewRows: (workspaceId: string, tabId: string, rows: PendingNewRow[]) => void
+  clearPendingNewRows: (workspaceId: string, tabId: string) => void
 
   // Selectors
   getActiveWorkspace: () => Workspace | null
@@ -619,6 +621,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                 editingState: {
                   primaryKeyColumns: columns,
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -650,6 +653,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                     ...(tab.editingState?.pendingChanges ?? {}),
                     [key]: change,
                   },
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -678,6 +682,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                 editingState: {
                   primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
                   pendingChanges: restChanges,
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -705,6 +710,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                 editingState: {
                   primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
                   pendingChanges: {},
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   editingCell: null,
                 },
               },
@@ -732,7 +738,65 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
                 editingState: {
                   primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   editingCell: cell,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  addPendingNewRows: (workspaceId, tabId, rows) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const existingRows = tab.editingState?.pendingNewRows ?? []
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: [...existingRows, ...rows],
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  clearPendingNewRows: (workspaceId, tabId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: [],
+                  editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
             },
