@@ -1,7 +1,7 @@
 use crate::db::connection::DbPool;
 use crate::error::AppError;
 use crate::models::query_result::{Column, QueryResult};
-use sqlx::{Column as SqlxColumn, Row, ValueRef};
+use sqlx::{Column as SqlxColumn, Row, TypeInfo, ValueRef};
 use std::time::Instant;
 
 pub async fn execute_sql(pool: &DbPool, sql: &str) -> Result<QueryResult, AppError> {
@@ -28,7 +28,7 @@ async fn execute_sqlite(pool: &sqlx::SqlitePool, sql: &str) -> Result<QueryResul
                 .iter()
                 .map(|col| Column {
                     name: col.name().to_string(),
-                    type_name: format!("{:?}", col.type_info()),
+                    type_name: col.type_info().name().to_string(),
                 })
                 .collect()
         } else {
@@ -80,7 +80,7 @@ async fn execute_postgres(pool: &sqlx::PgPool, sql: &str) -> Result<QueryResult,
                 .iter()
                 .map(|col| Column {
                     name: col.name().to_string(),
-                    type_name: format!("{:?}", col.type_info()),
+                    type_name: col.type_info().name().to_string(),
                 })
                 .collect()
         } else {

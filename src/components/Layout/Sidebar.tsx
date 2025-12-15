@@ -1,20 +1,33 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { SavedQueriesPanel } from '@/components/SavedQueries/SavedQueriesPanel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { executeQuery } from '@/lib/tauri'
 import { cn, getErrorMessage, sanitizeSqlIdentifier } from '@/lib/utils'
 import { useQueryHistoryStore } from '@/stores/queryHistoryStore'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
-import { AlertCircle, ChevronRight, Clock, Database, History, RefreshCw, Search, Table, Trash2 } from 'lucide-react'
+import {
+  AlertCircle,
+  Bookmark,
+  ChevronRight,
+  Clock,
+  Database,
+  History,
+  RefreshCw,
+  Search,
+  Table,
+  Trash2,
+} from 'lucide-react'
 
 interface TableInfo {
   name: string
   type: 'table' | 'view'
 }
 
-type SidebarTab = 'items' | 'history'
+type SidebarTab = 'items' | 'history' | 'queries'
 
 export function Sidebar() {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
@@ -24,6 +37,8 @@ export function Sidebar() {
   const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
   const setTabError = useWorkspaceManagerStore((s) => s.setTabError)
   const setTabSql = useWorkspaceManagerStore((s) => s.setTabSql)
+  const findTableTab = useWorkspaceManagerStore((s) => s.findTableTab)
+  const switchTab = useWorkspaceManagerStore((s) => s.switchTab)
 
   const historyByWorkspace = useQueryHistoryStore((s) => s.historyByWorkspace)
   const loadWorkspaceHistory = useQueryHistoryStore((s) => s.loadWorkspaceHistory)
@@ -98,11 +113,20 @@ export function Sidebar() {
     }
   }, [isConnected, workspaceId, loadTables, loadWorkspaceHistory])
 
-  // Handle table click - create new table tab and auto-execute
+  // Handle table click - focus existing tab or create new one
   const handleTableClick = async (tableName: string) => {
     if (!isConnected || !workspaceId) return
 
     const safeTableName = sanitizeSqlIdentifier(tableName)
+
+    // Check if tab for this table already exists
+    const existingTabId = findTableTab(workspaceId, safeTableName)
+    if (existingTabId) {
+      switchTab(workspaceId, existingTabId)
+      return
+    }
+
+    // Create new tab if not exists
     const tabId = createTab(workspaceId, 'table', tableName, safeTableName)
 
     setTabLoading(workspaceId, tabId, true)
@@ -151,6 +175,13 @@ export function Sidebar() {
     return `${days}d ago`
   }
 
+  // Handle saved query selection
+  const handleSelectSavedQuery = (sql: string) => {
+    if (activeWorkspace && activeTab) {
+      setTabSql(activeWorkspace.id, activeTab.id, sql)
+    }
+  }
+
   return (
     <aside className='w-56 border-r border-border bg-card flex flex-col'>
       {/* Tab switcher */}
@@ -158,7 +189,7 @@ export function Sidebar() {
         <button
           onClick={() => setSidebarTab('items')}
           className={cn(
-            'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors',
+            'flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium transition-colors',
             sidebarTab === 'items'
               ? 'text-foreground border-b-2 border-primary'
               : 'text-muted-foreground hover:text-foreground'
@@ -170,7 +201,7 @@ export function Sidebar() {
         <button
           onClick={() => setSidebarTab('history')}
           className={cn(
-            'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors',
+            'flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium transition-colors',
             sidebarTab === 'history'
               ? 'text-foreground border-b-2 border-primary'
               : 'text-muted-foreground hover:text-foreground'
@@ -179,25 +210,41 @@ export function Sidebar() {
           <History className='h-3.5 w-3.5' />
           History
         </button>
+        <button
+          onClick={() => setSidebarTab('queries')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium transition-colors',
+            sidebarTab === 'queries'
+              ? 'text-foreground border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Bookmark className='h-3.5 w-3.5' />
+          Saved
+        </button>
       </div>
 
-      {/* Search */}
-      <div className='p-2 border-b border-border'>
-        <div className='relative'>
-          <Search className='absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
-          <Input
-            type='text'
-            placeholder={sidebarTab === 'items' ? 'Search tables...' : 'Search history...'}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className='h-8 pl-8 pr-2 text-sm'
-          />
+      {/* Search - hide for saved queries tab (has own search) */}
+      {sidebarTab !== 'queries' && (
+        <div className='p-2 border-b border-border'>
+          <div className='relative'>
+            <Search className='absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
+            <Input
+              type='text'
+              placeholder={sidebarTab === 'items' ? 'Search tables...' : 'Search history...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className='h-8 pl-8 pr-2 text-sm'
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Content based on active tab */}
       <ScrollArea className='flex-1'>
-        {sidebarTab === 'items' ? (
+        {sidebarTab === 'queries' ? (
+          <SavedQueriesPanel onSelectQuery={handleSelectSavedQuery} onClose={() => {}} />
+        ) : sidebarTab === 'items' ? (
           <div className='p-2'>
             {/* Tables section */}
             <div className='mb-2'>
@@ -295,9 +342,14 @@ export function Sidebar() {
           <Button variant='ghost' size='icon' onClick={loadTables} className='h-7 w-7' disabled={!isConnected}>
             <RefreshCw className='h-4 w-4' />
           </Button>
-          <select className='flex-1 px-2 py-1 bg-background border border-input rounded text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring'>
-            <option>{activeWorkspace?.schema || 'public'}</option>
-          </select>
+          <Select value={activeWorkspace?.schema || 'public'} disabled>
+            <SelectTrigger className='flex-1 h-7 text-xs'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={activeWorkspace?.schema || 'public'}>{activeWorkspace?.schema || 'public'}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
     </aside>

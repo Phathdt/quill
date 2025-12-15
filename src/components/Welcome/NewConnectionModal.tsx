@@ -1,13 +1,21 @@
 import { useState } from 'react'
 
+import { zodResolver } from '@hookform/resolvers/zod'
 import { invoke } from '@tauri-apps/api/tauri'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useConnectionStore } from '@/stores/connectionStore'
-import { AlertCircle, CheckCircle2 } from 'lucide-react'
+import type { SslConfig } from '@/types/connection'
+import { AlertCircle, CheckCircle2, Plus } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+
+import { CreateGroupDialog } from './CreateGroupDialog'
+import { SslConfigForm } from './SslConfigForm'
 
 interface NewConnectionModalProps {
   dbType: 'postgres' | 'sqlite'
@@ -16,10 +24,10 @@ interface NewConnectionModalProps {
 }
 
 const TAG_OPTIONS = [
-  { value: 'local', label: 'local', color: 'bg-emerald-500' },
-  { value: 'development', label: 'development', color: 'bg-emerald-500' },
-  { value: 'staging', label: 'staging', color: 'bg-amber-500' },
-  { value: 'production', label: 'production', color: 'bg-rose-500' },
+  { value: 'local', label: 'local' },
+  { value: 'development', label: 'development' },
+  { value: 'staging', label: 'staging' },
+  { value: 'production', label: 'production' },
 ]
 
 const STATUS_COLORS = [
@@ -30,35 +38,96 @@ const STATUS_COLORS = [
   { value: 'red', color: 'bg-rose-500' },
 ]
 
+// PostgreSQL specific schema
+const postgresSchema = z.object({
+  name: z.string().optional(),
+  statusColor: z.string(),
+  tag: z.string(),
+  groupId: z.string().optional(),
+  host: z.string().min(1, 'Host is required'),
+  port: z.string().regex(/^\d+$/, 'Port must be a number'),
+  user: z.string(),
+  password: z.string().optional(),
+  database: z.string().min(1, 'Database name is required'),
+})
+
+// SQLite specific schema
+const sqliteSchema = z.object({
+  name: z.string().optional(),
+  statusColor: z.string(),
+  tag: z.string(),
+  groupId: z.string().optional(),
+  filePath: z.string().min(1, 'File path is required'),
+})
+
+type PostgresFormData = z.infer<typeof postgresSchema>
+type SqliteFormData = z.infer<typeof sqliteSchema>
+
 export function NewConnectionModal({ dbType, onClose, onCreated }: NewConnectionModalProps) {
+  if (dbType === 'postgres') {
+    return <PostgresConnectionForm onClose={onClose} onCreated={onCreated} />
+  }
+  return <SqliteConnectionForm onClose={onClose} onCreated={onCreated} />
+}
+
+interface ConnectionFormProps {
+  onClose: () => void
+  onCreated: () => void
+}
+
+function PostgresConnectionForm({ onClose, onCreated }: ConnectionFormProps) {
   const addConnection = useConnectionStore((s) => s.addConnection)
+  const groups = useConnectionStore((s) => s.groups)
+  const groupOrder = useConnectionStore((s) => s.groupOrder)
 
-  const [name, setName] = useState('')
-  const [statusColor, setStatusColor] = useState('default')
-  const [tag, setTag] = useState('local')
-
-  // PostgreSQL fields
-  const [host, setHost] = useState('127.0.0.1')
-  const [port, setPort] = useState('5432')
-  const [user, setUser] = useState('postgres')
-  const [password, setPassword] = useState('')
-  const [database, setDatabase] = useState('')
-
-  // SQLite fields
-  const [filePath, setFilePath] = useState('')
-
+  const [sslConfig, setSslConfig] = useState<SslConfig>({ mode: 'disable' })
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
   const [testError, setTestError] = useState('')
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors, isValid },
+  } = useForm<PostgresFormData>({
+    resolver: zodResolver(postgresSchema),
+    defaultValues: {
+      name: '',
+      statusColor: 'default',
+      tag: 'local',
+      groupId: undefined,
+      host: '127.0.0.1',
+      port: '5432',
+      user: 'postgres',
+      password: '',
+      database: '',
+    },
+    mode: 'onChange',
+  })
+
+  const statusColor = watch('statusColor')
+  const tag = watch('tag')
+  const groupId = watch('groupId')
+
+  const buildConnectionString = (data: PostgresFormData) => {
+    const userPart = data.user ? `${data.user}${data.password ? `:${data.password}` : ''}@` : ''
+    return `postgresql://${userPart}${data.host}:${data.port}/${data.database}`
+  }
 
   const handleTest = async () => {
+    const data = getValues()
     setTesting(true)
     setTestResult(null)
     setTestError('')
 
     try {
-      const connectionString = buildConnectionString()
-      await invoke('test_connection', { connectionString })
+      const connectionString = buildConnectionString(data)
+      const options = { connectionString, sslConfig }
+      await invoke('test_connection', { options })
       setTestResult('success')
     } catch (err) {
       setTestResult('error')
@@ -68,28 +137,21 @@ export function NewConnectionModal({ dbType, onClose, onCreated }: NewConnection
     }
   }
 
-  const buildConnectionString = () => {
-    if (dbType === 'sqlite') {
-      return filePath || ':memory:'
-    }
-    // PostgreSQL
-    const userPart = user ? `${user}${password ? `:${password}` : ''}@` : ''
-    return `postgresql://${userPart}${host}:${port}/${database}`
-  }
-
-  const handleSave = () => {
-    const connectionString = buildConnectionString()
+  const saveConnection = (data: PostgresFormData) => {
+    const connectionString = buildConnectionString(data)
 
     const conn = {
       id: crypto.randomUUID(),
-      name: name || (dbType === 'sqlite' ? 'SQLite Database' : `${database || 'postgres'} @ ${host}`),
+      name: data.name || `${data.database || 'postgres'} @ ${data.host}`,
       path: connectionString,
-      type: dbType,
-      host: dbType === 'postgres' ? host : undefined,
-      port: dbType === 'postgres' ? port : undefined,
-      database: dbType === 'postgres' ? database : undefined,
-      tag,
-      statusColor,
+      type: 'postgres' as const,
+      host: data.host,
+      port: data.port,
+      database: data.database,
+      sslConfig,
+      tag: data.tag,
+      statusColor: data.statusColor,
+      groupId: data.groupId || undefined,
       createdAt: Date.now(),
     }
 
@@ -98,165 +160,406 @@ export function NewConnectionModal({ dbType, onClose, onCreated }: NewConnection
   }
 
   const handleConnect = async () => {
+    const data = getValues()
     try {
-      const connectionString = buildConnectionString()
-      await invoke('test_connection', { connectionString })
-      handleSave()
+      const connectionString = buildConnectionString(data)
+      const options = { connectionString, sslConfig }
+      await invoke('test_connection', { options })
+      saveConnection(data)
     } catch (err) {
       setTestResult('error')
       setTestError(String(err))
     }
   }
 
-  const title = dbType === 'postgres' ? 'PostgreSQL Connection' : 'SQLite Connection'
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className='sm:max-w-md'>
+        <DialogHeader>
+          <DialogTitle>PostgreSQL Connection</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(saveConnection)}>
+          <div className='space-y-4 max-h-[60vh] overflow-y-auto'>
+            {/* Name */}
+            <div className='space-y-2'>
+              <label className='text-sm font-medium text-muted-foreground'>Name</label>
+              <Input {...register('name')} placeholder='Connection name' />
+            </div>
+
+            {/* Status Color & Tag */}
+            <div className='flex gap-4'>
+              <div className='space-y-2'>
+                <label className='text-sm font-medium text-muted-foreground'>Status color</label>
+                <div className='flex gap-1.5'>
+                  {STATUS_COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      type='button'
+                      onClick={() => setValue('statusColor', c.value)}
+                      className={cn(
+                        'w-7 h-7 rounded-md transition-all',
+                        c.color,
+                        statusColor === c.value
+                          ? 'ring-2 ring-ring ring-offset-2 ring-offset-background'
+                          : 'hover:opacity-80'
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className='flex-1 space-y-2'>
+                <label className='text-sm font-medium text-muted-foreground'>Tag</label>
+                <Select value={tag} onValueChange={(value) => setValue('tag', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder='Select tag' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TAG_OPTIONS.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Group Selection */}
+            <div className='space-y-2'>
+              <label className='text-sm font-medium text-muted-foreground'>Group</label>
+              <div className='flex gap-2'>
+                <Select
+                  value={groupId || '__none__'}
+                  onValueChange={(value) => setValue('groupId', value === '__none__' ? undefined : value)}
+                >
+                  <SelectTrigger className='flex-1'>
+                    <SelectValue placeholder='No group' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='__none__'>No group</SelectItem>
+                    {groupOrder.map((gId) => {
+                      const group = groups[gId]
+                      return (
+                        <SelectItem key={gId} value={gId}>
+                          {group?.name || 'Unnamed Group'}
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+                <Button type='button' variant='outline' size='icon' onClick={() => setShowCreateGroup(true)}>
+                  <Plus className='h-4 w-4' />
+                </Button>
+              </div>
+            </div>
+
+            {/* Host & Port */}
+            <div className='flex gap-4'>
+              <div className='flex-1 space-y-2'>
+                <label className='text-sm font-medium text-muted-foreground'>Host/Socket</label>
+                <Input {...register('host')} placeholder='127.0.0.1' />
+                {errors.host && <p className='text-xs text-destructive'>{errors.host.message}</p>}
+              </div>
+              <div className='w-24 space-y-2'>
+                <label className='text-sm font-medium text-muted-foreground'>Port</label>
+                <Input {...register('port')} placeholder='5432' />
+                {errors.port && <p className='text-xs text-destructive'>{errors.port.message}</p>}
+              </div>
+            </div>
+
+            {/* User */}
+            <div className='space-y-2'>
+              <label className='text-sm font-medium text-muted-foreground'>User</label>
+              <Input {...register('user')} placeholder='postgres' />
+            </div>
+
+            {/* Password */}
+            <div className='space-y-2'>
+              <label className='text-sm font-medium text-muted-foreground'>Password</label>
+              <Input type='password' {...register('password')} placeholder='password' />
+            </div>
+
+            {/* Database */}
+            <div className='space-y-2'>
+              <label className='text-sm font-medium text-muted-foreground'>Database</label>
+              <Input {...register('database')} placeholder='database name' />
+              {errors.database && <p className='text-xs text-destructive'>{errors.database.message}</p>}
+            </div>
+
+            {/* SSL Configuration */}
+            <div className='space-y-3 pt-2 border-t border-border'>
+              <h4 className='text-sm font-medium'>SSL/TLS</h4>
+              <SslConfigForm config={sslConfig} onConfigChange={setSslConfig} isPostgres={true} />
+            </div>
+
+            {/* Test Result */}
+            {testResult && (
+              <div
+                className={cn(
+                  'flex items-center gap-2 p-3 rounded-lg text-sm border',
+                  testResult === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-destructive/10 text-destructive border-destructive/20'
+                )}
+              >
+                {testResult === 'success' ? (
+                  <>
+                    <CheckCircle2 className='h-4 w-4' />
+                    Connection successful!
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className='h-4 w-4' />
+                    Connection failed: {testError}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className='sm:justify-between mt-4'>
+            <Button type='submit' variant='ghost'>
+              Save
+            </Button>
+            <div className='flex gap-2'>
+              <Button type='button' variant='outline' onClick={handleTest} disabled={testing || !isValid}>
+                {testing ? 'Testing...' : 'Test'}
+              </Button>
+              <Button type='button' onClick={handleConnect} disabled={!isValid}>
+                Connect
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+
+      <CreateGroupDialog isOpen={showCreateGroup} onClose={() => setShowCreateGroup(false)} />
+    </Dialog>
+  )
+}
+
+function SqliteConnectionForm({ onClose, onCreated }: ConnectionFormProps) {
+  const addConnection = useConnectionStore((s) => s.addConnection)
+  const groups = useConnectionStore((s) => s.groups)
+  const groupOrder = useConnectionStore((s) => s.groupOrder)
+
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
+  const [testError, setTestError] = useState('')
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors, isValid },
+  } = useForm<SqliteFormData>({
+    resolver: zodResolver(sqliteSchema),
+    defaultValues: {
+      name: '',
+      statusColor: 'default',
+      tag: 'local',
+      groupId: undefined,
+      filePath: '',
+    },
+    mode: 'onChange',
+  })
+
+  const statusColor = watch('statusColor')
+  const tag = watch('tag')
+  const groupId = watch('groupId')
+
+  const buildConnectionString = (data: SqliteFormData) => {
+    return data.filePath || ':memory:'
+  }
+
+  const handleTest = async () => {
+    const data = getValues()
+    setTesting(true)
+    setTestResult(null)
+    setTestError('')
+
+    try {
+      const connectionString = buildConnectionString(data)
+      const options = { connectionString }
+      await invoke('test_connection', { options })
+      setTestResult('success')
+    } catch (err) {
+      setTestResult('error')
+      setTestError(String(err))
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const saveConnection = (data: SqliteFormData) => {
+    const connectionString = buildConnectionString(data)
+
+    const conn = {
+      id: crypto.randomUUID(),
+      name: data.name || 'SQLite Database',
+      path: connectionString,
+      type: 'sqlite' as const,
+      tag: data.tag,
+      statusColor: data.statusColor,
+      groupId: data.groupId || undefined,
+      createdAt: Date.now(),
+    }
+
+    addConnection(conn)
+    onCreated()
+  }
+
+  const handleConnect = async () => {
+    const data = getValues()
+    try {
+      const connectionString = buildConnectionString(data)
+      const options = { connectionString }
+      await invoke('test_connection', { options })
+      saveConnection(data)
+    } catch (err) {
+      setTestResult('error')
+      setTestError(String(err))
+    }
+  }
 
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className='sm:max-w-md'>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle>SQLite Connection</DialogTitle>
         </DialogHeader>
 
-        {/* Form */}
-        <div className='space-y-4 max-h-[60vh] overflow-y-auto'>
-          {/* Name */}
-          <div className='space-y-2'>
-            <label className='text-sm font-medium text-muted-foreground'>Name</label>
-            <Input type='text' value={name} onChange={(e) => setName(e.target.value)} placeholder='Connection name' />
-          </div>
-
-          {/* Status Color & Tag */}
-          <div className='flex gap-4'>
+        <form onSubmit={handleSubmit(saveConnection)}>
+          <div className='space-y-4 max-h-[60vh] overflow-y-auto'>
+            {/* Name */}
             <div className='space-y-2'>
-              <label className='text-sm font-medium text-muted-foreground'>Status color</label>
-              <div className='flex gap-1.5'>
-                {STATUS_COLORS.map((c) => (
-                  <button
-                    key={c.value}
-                    onClick={() => setStatusColor(c.value)}
-                    className={cn(
-                      'w-7 h-7 rounded-md transition-all',
-                      c.color,
-                      statusColor === c.value
-                        ? 'ring-2 ring-ring ring-offset-2 ring-offset-background'
-                        : 'hover:opacity-80'
-                    )}
-                  />
-                ))}
+              <label className='text-sm font-medium text-muted-foreground'>Name</label>
+              <Input {...register('name')} placeholder='Connection name' />
+            </div>
+
+            {/* Status Color & Tag */}
+            <div className='flex gap-4'>
+              <div className='space-y-2'>
+                <label className='text-sm font-medium text-muted-foreground'>Status color</label>
+                <div className='flex gap-1.5'>
+                  {STATUS_COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      type='button'
+                      onClick={() => setValue('statusColor', c.value)}
+                      className={cn(
+                        'w-7 h-7 rounded-md transition-all',
+                        c.color,
+                        statusColor === c.value
+                          ? 'ring-2 ring-ring ring-offset-2 ring-offset-background'
+                          : 'hover:opacity-80'
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className='flex-1 space-y-2'>
+                <label className='text-sm font-medium text-muted-foreground'>Tag</label>
+                <Select value={tag} onValueChange={(value) => setValue('tag', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder='Select tag' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TAG_OPTIONS.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className='flex-1 space-y-2'>
-              <label className='text-sm font-medium text-muted-foreground'>Tag</label>
-              <select
-                value={tag}
-                onChange={(e) => setTag(e.target.value)}
-                className='flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm'
+            {/* Group Selection */}
+            <div className='space-y-2'>
+              <label className='text-sm font-medium text-muted-foreground'>Group</label>
+              <div className='flex gap-2'>
+                <Select
+                  value={groupId || '__none__'}
+                  onValueChange={(value) => setValue('groupId', value === '__none__' ? undefined : value)}
+                >
+                  <SelectTrigger className='flex-1'>
+                    <SelectValue placeholder='No group' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='__none__'>No group</SelectItem>
+                    {groupOrder.map((gId) => {
+                      const group = groups[gId]
+                      return (
+                        <SelectItem key={gId} value={gId}>
+                          {group?.name || 'Unnamed Group'}
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+                <Button type='button' variant='outline' size='icon' onClick={() => setShowCreateGroup(true)}>
+                  <Plus className='h-4 w-4' />
+                </Button>
+              </div>
+            </div>
+
+            {/* SQLite File Path */}
+            <div className='space-y-2'>
+              <label className='text-sm font-medium text-muted-foreground'>Database File</label>
+              <Input {...register('filePath')} placeholder='/path/to/database.db or :memory:' />
+              {errors.filePath && <p className='text-xs text-destructive'>{errors.filePath.message}</p>}
+              <p className='text-xs text-muted-foreground'>Use :memory: for an in-memory database</p>
+            </div>
+
+            {/* Test Result */}
+            {testResult && (
+              <div
+                className={cn(
+                  'flex items-center gap-2 p-3 rounded-lg text-sm border',
+                  testResult === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-destructive/10 text-destructive border-destructive/20'
+                )}
               >
-                {TAG_OPTIONS.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {testResult === 'success' ? (
+                  <>
+                    <CheckCircle2 className='h-4 w-4' />
+                    Connection successful!
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className='h-4 w-4' />
+                    Connection failed: {testError}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
-          {dbType === 'postgres' ? (
-            <>
-              {/* Host & Port */}
-              <div className='flex gap-4'>
-                <div className='flex-1 space-y-2'>
-                  <label className='text-sm font-medium text-muted-foreground'>Host/Socket</label>
-                  <Input type='text' value={host} onChange={(e) => setHost(e.target.value)} placeholder='127.0.0.1' />
-                </div>
-                <div className='w-24 space-y-2'>
-                  <label className='text-sm font-medium text-muted-foreground'>Port</label>
-                  <Input type='text' value={port} onChange={(e) => setPort(e.target.value)} placeholder='5432' />
-                </div>
-              </div>
-
-              {/* User */}
-              <div className='space-y-2'>
-                <label className='text-sm font-medium text-muted-foreground'>User</label>
-                <Input type='text' value={user} onChange={(e) => setUser(e.target.value)} placeholder='postgres' />
-              </div>
-
-              {/* Password */}
-              <div className='space-y-2'>
-                <label className='text-sm font-medium text-muted-foreground'>Password</label>
-                <Input
-                  type='password'
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder='password'
-                />
-              </div>
-
-              {/* Database */}
-              <div className='space-y-2'>
-                <label className='text-sm font-medium text-muted-foreground'>Database</label>
-                <Input
-                  type='text'
-                  value={database}
-                  onChange={(e) => setDatabase(e.target.value)}
-                  placeholder='database name'
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              {/* SQLite File Path */}
-              <div className='space-y-2'>
-                <label className='text-sm font-medium text-muted-foreground'>Database File</label>
-                <Input
-                  type='text'
-                  value={filePath}
-                  onChange={(e) => setFilePath(e.target.value)}
-                  placeholder='/path/to/database.db or :memory:'
-                />
-                <p className='text-xs text-muted-foreground'>Use :memory: for an in-memory database</p>
-              </div>
-            </>
-          )}
-
-          {/* Test Result */}
-          {testResult && (
-            <div
-              className={cn(
-                'flex items-center gap-2 p-3 rounded-lg text-sm border',
-                testResult === 'success'
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  : 'bg-destructive/10 text-destructive border-destructive/20'
-              )}
-            >
-              {testResult === 'success' ? (
-                <>
-                  <CheckCircle2 className='h-4 w-4' />
-                  Connection successful!
-                </>
-              ) : (
-                <>
-                  <AlertCircle className='h-4 w-4' />
-                  Connection failed: {testError}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        <DialogFooter className='sm:justify-between'>
-          <Button variant='ghost' onClick={handleSave}>
-            Save
-          </Button>
-          <div className='flex gap-2'>
-            <Button variant='outline' onClick={handleTest} disabled={testing}>
-              {testing ? 'Testing...' : 'Test'}
+          <DialogFooter className='sm:justify-between mt-4'>
+            <Button type='submit' variant='ghost'>
+              Save
             </Button>
-            <Button onClick={handleConnect}>Connect</Button>
-          </div>
-        </DialogFooter>
+            <div className='flex gap-2'>
+              <Button type='button' variant='outline' onClick={handleTest} disabled={testing || !isValid}>
+                {testing ? 'Testing...' : 'Test'}
+              </Button>
+              <Button type='button' onClick={handleConnect} disabled={!isValid}>
+                Connect
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
       </DialogContent>
+
+      <CreateGroupDialog isOpen={showCreateGroup} onClose={() => setShowCreateGroup(false)} />
     </Dialog>
   )
 }

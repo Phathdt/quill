@@ -1,6 +1,5 @@
-import { z } from 'zod'
-
 import type { FilterOperator } from '@/types/workspace'
+import { z } from 'zod'
 
 // Operators that don't require a value
 const NULL_OPERATORS: FilterOperator[] = ['IS NULL', 'IS NOT NULL']

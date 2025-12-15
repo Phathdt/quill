@@ -1,15 +1,19 @@
+import { useState } from 'react'
+
+import { SaveQueryDialog } from '@/components/SavedQueries/SaveQueryDialog'
 import { Button } from '@/components/ui/button'
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
 import { formatSql } from '@/lib/sql-formatter'
 import { useSchemaStore } from '@/stores/schemaStore'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
-import { Code, Eraser, Loader2, Play, RefreshCw } from 'lucide-react'
+import { BookmarkPlus, Code, Eraser, Loader2, Play, RefreshCw } from 'lucide-react'
 
 export function EditorToolbar() {
   const { execute, loading } = useExecuteQuery()
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const setTabSql = useWorkspaceManagerStore((s) => s.setTabSql)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
 
   const handleClear = () => {
     if (activeWorkspace && activeTab) {
@@ -71,6 +75,17 @@ export function EditorToolbar() {
         <RefreshCw className='h-4 w-4' />
       </Button>
 
+      <Button
+        onClick={() => setShowSaveDialog(true)}
+        variant='ghost'
+        size='sm'
+        disabled={!activeTab?.sql?.trim()}
+        title='Save Query (Cmd+Shift+S)'
+      >
+        <BookmarkPlus className='h-4 w-4 mr-2' />
+        Save
+      </Button>
+
       <div className='flex-1' />
 
       <span className='text-xs text-muted-foreground'>
@@ -79,6 +94,13 @@ export function EditorToolbar() {
         <kbd className='px-1.5 py-0.5 bg-muted rounded text-muted-foreground'>Enter</kbd>
         <span className='ml-2'>to execute</span>
       </span>
+
+      <SaveQueryDialog
+        isOpen={showSaveDialog}
+        onClose={() => setShowSaveDialog(false)}
+        sql={activeTab?.sql ?? ''}
+        connectionType={activeWorkspace?.dbType}
+      />
     </div>
   )
 }

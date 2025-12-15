@@ -3,6 +3,35 @@ use crate::error::AppError;
 use serde::Serialize;
 use sqlx::Row;
 
+/// Validate identifier name to prevent SQL injection in SQLite PRAGMA queries.
+/// SQLite identifiers can contain letters, digits, underscores, and dollar signs.
+/// They cannot start with a digit.
+fn validate_identifier(name: &str) -> Result<(), AppError> {
+    if name.is_empty() {
+        return Err(AppError::Query("Identifier cannot be empty".to_string()));
+    }
+
+    // Check first character (must not be digit)
+    let first = name.chars().next().unwrap();
+    if first.is_ascii_digit() {
+        return Err(AppError::Query(
+            "Identifier cannot start with a digit".to_string(),
+        ));
+    }
+
+    // Allow only alphanumeric, underscore, and dollar sign
+    for c in name.chars() {
+        if !c.is_ascii_alphanumeric() && c != '_' && c != '$' {
+            return Err(AppError::Query(format!(
+                "Invalid character '{}' in identifier",
+                c
+            )));
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Serialize)]
 pub struct TableColumn {
     pub name: String,
@@ -18,6 +47,8 @@ pub struct TableIndex {
     pub columns: Vec<String>,
     pub is_unique: bool,
     pub is_primary: bool,
+    pub index_type: String,
+    pub definition: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -90,13 +121,16 @@ pub async fn get_table_structure(
                     i.indexname as name,
                     array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) as columns,
                     ix.indisunique as is_unique,
-                    ix.indisprimary as is_primary
+                    ix.indisprimary as is_primary,
+                    am.amname as index_type,
+                    pg_get_indexdef(ix.indexrelid) as definition
                 FROM pg_indexes i
                 JOIN pg_class c ON c.relname = i.indexname
                 JOIN pg_index ix ON ix.indexrelid = c.oid
+                JOIN pg_am am ON am.oid = c.relam
                 JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ANY(ix.indkey)
                 WHERE i.tablename = $1 AND i.schemaname = 'public'
-                GROUP BY i.indexname, ix.indisunique, ix.indisprimary
+                GROUP BY i.indexname, ix.indisunique, ix.indisprimary, am.amname, ix.indexrelid
             "#;
 
             let index_rows = sqlx::query(indexes_query)
@@ -111,6 +145,8 @@ pub async fn get_table_structure(
                     columns: row.get("columns"),
                     is_unique: row.get("is_unique"),
                     is_primary: row.get("is_primary"),
+                    index_type: row.get("index_type"),
+                    definition: row.get("definition"),
                 })
                 .collect();
 
@@ -150,8 +186,11 @@ pub async fn get_table_structure(
             })
         }
         DbPool::Sqlite(pool) => {
+            // Validate table name to prevent SQL injection
+            validate_identifier(&table_name)?;
+
             // Get columns
-            let table_info_query = format!("PRAGMA table_info('{}')", table_name);
+            let table_info_query = format!("PRAGMA table_info(\"{}\")", table_name);
             let column_rows = sqlx::query(&table_info_query).fetch_all(pool).await?;
 
             let columns: Vec<TableColumn> = column_rows
@@ -166,16 +205,18 @@ pub async fn get_table_structure(
                 .collect();
 
             // Get indexes
-            let index_list_query = format!("PRAGMA index_list('{}')", table_name);
+            let index_list_query = format!("PRAGMA index_list(\"{}\")", table_name);
             let index_rows = sqlx::query(&index_list_query).fetch_all(pool).await?;
 
             let mut indexes = Vec::new();
             for idx_row in index_rows {
                 let idx_name: String = idx_row.get("name");
                 let is_unique: i64 = idx_row.get("unique");
+                let origin: String = idx_row.get("origin");
 
-                // Get index columns
-                let index_info_query = format!("PRAGMA index_info('{}')", idx_name);
+                // Get index columns - idx_name comes from SQLite so already validated
+                validate_identifier(&idx_name)?;
+                let index_info_query = format!("PRAGMA index_info(\"{}\")", idx_name);
                 let col_rows = sqlx::query(&index_info_query).fetch_all(pool).await?;
 
                 let columns: Vec<String> = col_rows
@@ -187,12 +228,14 @@ pub async fn get_table_structure(
                     name: idx_name.clone(),
                     columns,
                     is_unique: is_unique == 1,
-                    is_primary: idx_name.starts_with("sqlite_autoindex"),
+                    is_primary: origin == "pk",
+                    index_type: "btree".to_string(), // SQLite uses B-tree
+                    definition: None,
                 });
             }
 
             // Get foreign keys
-            let fk_query = format!("PRAGMA foreign_key_list('{}')", table_name);
+            let fk_query = format!("PRAGMA foreign_key_list(\"{}\")", table_name);
             let fk_rows = sqlx::query(&fk_query).fetch_all(pool).await?;
 
             let foreign_keys: Vec<ForeignKey> = fk_rows
@@ -244,6 +287,56 @@ pub async fn get_tables_list(
             let query = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name";
             let rows = sqlx::query(query).fetch_all(pool).await?;
             Ok(rows.iter().map(|row| row.get("name")).collect())
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn get_primary_key(
+    workspace_id: String,
+    table_name: String,
+    state: tauri::State<'_, MultiDbState>,
+) -> Result<Vec<String>, AppError> {
+    let conns = state.connections.read().await;
+    let conn_info = conns
+        .get(&workspace_id)
+        .ok_or_else(|| AppError::Connection("Workspace not connected".to_string()))?;
+
+    match &conn_info.pool {
+        DbPool::Postgres(pool) => {
+            let sql = r#"
+                SELECT a.attname
+                FROM pg_index i
+                JOIN pg_attribute a ON a.attrelid = i.indrelid
+                    AND a.attnum = ANY(i.indkey)
+                WHERE i.indrelid = $1::regclass
+                AND i.indisprimary
+            "#;
+            let rows = sqlx::query_scalar::<_, String>(sql)
+                .bind(&table_name)
+                .fetch_all(pool)
+                .await?;
+            Ok(rows)
+        }
+        DbPool::Sqlite(pool) => {
+            // Validate table name to prevent SQL injection
+            validate_identifier(&table_name)?;
+            let sql = format!("PRAGMA table_info(\"{}\")", table_name);
+            let rows = sqlx::query(&sql).fetch_all(pool).await?;
+
+            let pk_cols: Vec<String> = rows
+                .iter()
+                .filter_map(|row| {
+                    let pk: i64 = row.get("pk");
+                    if pk > 0 {
+                        Some(row.get("name"))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            Ok(pk_cols)
         }
     }
 }

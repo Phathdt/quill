@@ -9,6 +9,8 @@ pub enum AppError {
     Query(String),
     #[error("Connection error: {0}")]
     Connection(String),
+    #[error("Import error: {0}")]
+    Import(String),
 }
 
 impl From<sqlx::Error> for AppError {

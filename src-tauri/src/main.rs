@@ -19,6 +19,13 @@ fn main() {
             commands::query::test_connection,
             commands::schema::get_table_structure,
             commands::schema::get_tables_list,
+            commands::schema::get_primary_key,
+            commands::query::insert_row,
+            commands::query::delete_row,
+            commands::query::delete_rows,
+            commands::query::update_row,
+            commands::import::preview_import_file,
+            commands::import::import_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

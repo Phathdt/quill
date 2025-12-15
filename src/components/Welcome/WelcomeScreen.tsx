@@ -7,6 +7,7 @@ import type { Connection } from '@/types/connection'
 import { Database, Plus, Search, X } from 'lucide-react'
 
 import { ConnectionCard } from './ConnectionCard'
+import { ConnectionGroupHeader } from './ConnectionGroupHeader'
 import { DatabaseTypeModal } from './DatabaseTypeModal'
 import { NewConnectionModal } from './NewConnectionModal'
 
@@ -22,18 +23,35 @@ export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
   const [selectedDbType, setSelectedDbType] = useState<'postgres' | 'sqlite'>('postgres')
 
   const connections = useConnectionStore((s) => s.connections)
+  const groups = useConnectionStore((s) => s.groups)
+  const getGroupedConnections = useConnectionStore((s) => s.getGroupedConnections)
+  const moveToGroup = useConnectionStore((s) => s.moveToGroup)
   const removeConnection = useConnectionStore((s) => s.removeConnection)
 
-  const filteredConnections = useMemo(() => {
-    if (!search.trim()) return connections
+  const filteredGroupedConnections = useMemo(() => {
+    const groupedConns = getGroupedConnections()
+
+    if (!search.trim()) return groupedConns
+
     const term = search.toLowerCase()
-    return connections.filter(
-      (c) =>
-        c.name.toLowerCase().includes(term) ||
-        c.host?.toLowerCase().includes(term) ||
-        c.database?.toLowerCase().includes(term)
+    return (
+      groupedConns
+        .map(({ group, connections: conns }) => ({
+          group,
+          connections: conns.filter(
+            (c) =>
+              c.name.toLowerCase().includes(term) ||
+              c.host?.toLowerCase().includes(term) ||
+              c.database?.toLowerCase().includes(term)
+          ),
+        }))
+        // Keep groups even if they have no matching connections (for empty group display)
+        .filter(({ group, connections: conns }) => conns.length > 0 || group !== null)
     )
-  }, [connections, search])
+  }, [getGroupedConnections, search])
+
+  // Check if we have any content to show (connections or groups)
+  const hasContent = connections.length > 0 || Object.keys(groups).length > 0
 
   const handleSelectType = (type: 'postgres' | 'sqlite') => {
     setSelectedDbType(type)
@@ -51,12 +69,8 @@ export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
       <aside className='w-72 bg-card border-r border-border flex flex-col'>
         {/* Logo Area */}
         <div className='flex-1 flex flex-col items-center justify-center p-8'>
-          <div className='w-32 h-32 mb-6 relative'>
-            <div className='absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 rounded-3xl rotate-12 opacity-90' />
-            <div className='absolute inset-2 bg-gradient-to-br from-amber-300 via-orange-400 to-amber-500 rounded-2xl rotate-6' />
-            <div className='absolute inset-4 bg-gradient-to-br from-amber-200 via-orange-300 to-amber-400 rounded-xl flex items-center justify-center'>
-              <span className='text-4xl'>🪶</span>
-            </div>
+          <div className='w-32 h-32 mb-6'>
+            <img src='/icon.png' alt='Quill' className='w-full h-full object-contain' />
           </div>
           <h1 className='text-3xl font-bold text-foreground tracking-tight'>Quill</h1>
           <p className='text-muted-foreground text-sm mt-1'>Write data, beautifully</p>
@@ -83,8 +97,9 @@ export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
           </div>
         )}
 
-        {/* Search Bar */}
-        <div className='p-4 border-b border-border'>
+        {/* Header Bar */}
+        <div className='p-4 border-b border-border space-y-3'>
+          {/* Search Bar */}
           <div className='relative'>
             <Search className='absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground' />
             <Input
@@ -110,7 +125,7 @@ export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
 
         {/* Connection List */}
         <div className='flex-1 overflow-auto p-4'>
-          {filteredConnections.length === 0 ? (
+          {!hasContent ? (
             <div className='flex flex-col items-center justify-center h-full text-muted-foreground'>
               <Database className='w-16 h-16 mb-4 opacity-50' strokeWidth={1} />
               <p className='text-lg font-medium'>No connections yet</p>
@@ -119,15 +134,33 @@ export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
                 Create connection
               </Button>
             </div>
+          ) : filteredGroupedConnections.length === 0 ? (
+            <div className='flex flex-col items-center justify-center h-full text-muted-foreground'>
+              <Database className='w-16 h-16 mb-4 opacity-50' strokeWidth={1} />
+              <p className='text-lg font-medium'>No matching connections</p>
+              <p className='text-sm mt-1'>Try a different search term</p>
+            </div>
           ) : (
-            <div className='space-y-2'>
-              {filteredConnections.map((conn) => (
-                <ConnectionCard
-                  key={conn.id}
-                  connection={conn}
-                  onConnect={() => onConnect(conn)}
-                  onDelete={() => removeConnection(conn.id)}
-                />
+            <div className='space-y-1'>
+              {filteredGroupedConnections.map(({ group, connections }) => (
+                <div key={group?.id ?? 'ungrouped'}>
+                  {group && <ConnectionGroupHeader group={group} connectionCount={connections.length} />}
+
+                  {(!group || group.isExpanded) && (
+                    <div className={group ? 'ml-4' : ''}>
+                      {connections.map((conn) => (
+                        <ConnectionCard
+                          key={conn.id}
+                          connection={conn}
+                          onConnect={() => onConnect(conn)}
+                          onDelete={() => removeConnection(conn.id)}
+                          onMoveToGroup={(groupId) => moveToGroup(conn.id, groupId)}
+                          availableGroups={Object.values(groups)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}

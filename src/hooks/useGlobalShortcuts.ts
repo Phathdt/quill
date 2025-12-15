@@ -8,6 +8,8 @@ export function useGlobalShortcuts() {
   const createTab = useWorkspaceManagerStore((s) => s.createTab)
   const closeTab = useWorkspaceManagerStore((s) => s.closeTab)
   const setTabSql = useWorkspaceManagerStore((s) => s.setTabSql)
+  const setSidebarOpen = useWorkspaceManagerStore((s) => s.setSidebarOpen)
+  const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
 
   // Cmd+T: Create new tab
   useHotkeys(
@@ -43,6 +45,27 @@ export function useGlobalShortcuts() {
         const language = dbType === 'postgres' ? 'postgresql' : 'sqlite'
         const formatted = formatSql(activeTab.sql, language)
         setTabSql(activeWorkspace.id, activeTab.id, formatted)
+      }
+    },
+    { enableOnFormTags: true }
+  )
+
+  // Cmd+D: Toggle record detail sidebar
+  useHotkeys(
+    'meta+d',
+    (e) => {
+      e.preventDefault()
+      if (activeWorkspace && activeTab && activeTab.result?.rows.length) {
+        const sidebarState = activeTab.sidebarState
+        if (sidebarState?.isOpen && sidebarState.mode === 'record') {
+          setSidebarOpen(activeWorkspace.id, activeTab.id, false)
+        } else {
+          // If opening and no row selected, select first row
+          if (sidebarState?.selectedRowIndex === null) {
+            setSidebarRowIndex(activeWorkspace.id, activeTab.id, 0)
+          }
+          setSidebarOpen(activeWorkspace.id, activeTab.id, true, 'record')
+        }
       }
     },
     { enableOnFormTags: true }

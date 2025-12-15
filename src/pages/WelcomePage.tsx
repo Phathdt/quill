@@ -27,7 +27,10 @@ export function WelcomePage() {
     try {
       await invoke('connect_workspace', {
         workspaceId,
-        connectionString: connection.path,
+        options: {
+          connectionString: connection.path,
+          sslConfig: connection.sslConfig,
+        },
       })
       setWorkspaceConnected(workspaceId, true)
       navigate('/workspaces')

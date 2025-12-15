@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import { filterSchema, type FilterFormData } from '@/lib/filter-schema'
 import type { Column } from '@/types/database'
 import type { FilterOperator, TableFilter } from '@/types/workspace'
 import { ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
+import { useForm } from 'react-hook-form'
 
 interface FilterRowProps {
   filter: TableFilter
@@ -39,6 +40,7 @@ export function FilterRow({ filter, columns, onUpdate, onRemove }: FilterRowProp
     mode: 'onChange',
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const operator = watch('operator')
   const isNullOperator = NULL_OPERATORS.includes(operator)
   const isRangeOperator = RANGE_OPERATORS.includes(operator)

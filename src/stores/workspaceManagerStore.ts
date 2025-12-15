@@ -1,5 +1,6 @@
 import type { Connection } from '@/types/connection'
 import type { QueryResult } from '@/types/database'
+import type { CellEdit } from '@/types/editing'
 import type { DbType, Tab, TableFilter, Workspace, WorkspaceManagerState } from '@/types/workspace'
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
@@ -38,6 +39,11 @@ interface WorkspaceManagerStore extends WorkspaceManagerState {
   setTabResult: (workspaceId: string, tabId: string, result: QueryResult) => void
   setTabError: (workspaceId: string, tabId: string, error: string | null) => void
   setTabLoading: (workspaceId: string, tabId: string, loading: boolean) => void
+  findTableTab: (workspaceId: string, tableName: string) => string | null
+  closeOtherTabs: (workspaceId: string, tabId: string) => void
+  closeTabsToRight: (workspaceId: string, tabId: string) => void
+  closeAllTabs: (workspaceId: string) => void
+  renameTab: (workspaceId: string, tabId: string, name: string) => void
 
   // Filter operations (table mode only)
   setTabFilters: (workspaceId: string, tabId: string, filters: TableFilter[]) => void
@@ -45,6 +51,18 @@ interface WorkspaceManagerStore extends WorkspaceManagerState {
   updateTabFilter: (workspaceId: string, tabId: string, filterId: string, updates: Partial<TableFilter>) => void
   removeTabFilter: (workspaceId: string, tabId: string, filterId: string) => void
   clearTabFilters: (workspaceId: string, tabId: string) => void
+
+  // Sidebar operations
+  setSidebarOpen: (workspaceId: string, tabId: string, isOpen: boolean, mode?: 'record' | 'history') => void
+  setSidebarRowIndex: (workspaceId: string, tabId: string, index: number | null) => void
+  navigateSidebarRow: (workspaceId: string, tabId: string, direction: 'prev' | 'next') => void
+
+  // Editing operations (table mode only)
+  setPrimaryKeyColumns: (workspaceId: string, tabId: string, columns: string[]) => void
+  addPendingChange: (workspaceId: string, tabId: string, change: CellEdit) => void
+  removePendingChange: (workspaceId: string, tabId: string, key: string) => void
+  clearPendingChanges: (workspaceId: string, tabId: string) => void
+  setEditingCell: (workspaceId: string, tabId: string, cell: { rowIndex: number; columnIndex: number } | null) => void
 
   // Selectors
   getActiveWorkspace: () => Workspace | null
@@ -206,6 +224,109 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
         workspaces: {
           ...s.workspaces,
           [workspaceId]: { ...ws, activeTabId: tabId },
+        },
+      }
+    })
+  },
+
+  findTableTab: (workspaceId, tableName) => {
+    const ws = get().workspaces[workspaceId]
+    if (!ws) return null
+    for (const tabId of ws.tabOrder) {
+      const tab = ws.tabs[tabId]
+      if (tab?.type === 'table' && tab.tableName === tableName) {
+        return tabId
+      }
+    }
+    return null
+  },
+
+  closeOtherTabs: (workspaceId, tabId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: { [tabId]: tab },
+            tabOrder: [tabId],
+            activeTabId: tabId,
+          },
+        },
+      }
+    })
+  },
+
+  closeTabsToRight: (workspaceId, tabId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws) return s
+
+      const tabIndex = ws.tabOrder.indexOf(tabId)
+      if (tabIndex === -1) return s
+
+      const newTabOrder = ws.tabOrder.slice(0, tabIndex + 1)
+      const newTabs: Record<string, Tab> = {}
+      for (const id of newTabOrder) {
+        if (ws.tabs[id]) newTabs[id] = ws.tabs[id]
+      }
+
+      const newActiveId = newTabOrder.includes(ws.activeTabId || '')
+        ? ws.activeTabId
+        : newTabOrder[newTabOrder.length - 1]
+
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: newTabs,
+            tabOrder: newTabOrder,
+            activeTabId: newActiveId,
+          },
+        },
+      }
+    })
+  },
+
+  closeAllTabs: (workspaceId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws) return s
+
+      const defaultTab = createDefaultTab()
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: { [defaultTab.id]: defaultTab },
+            tabOrder: [defaultTab.id],
+            activeTabId: defaultTab.id,
+          },
+        },
+      }
+    })
+  },
+
+  renameTab: (workspaceId, tabId, name) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: { ...ws.tabs[tabId], name },
+            },
+          },
         },
       }
     })
@@ -382,6 +503,238 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
             tabs: {
               ...ws.tabs,
               [tabId]: { ...ws.tabs[tabId], filters: [] },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  // Sidebar operations
+  setSidebarOpen: (workspaceId, tabId, isOpen, mode = 'record') => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                sidebarState: {
+                  isOpen,
+                  mode,
+                  selectedRowIndex: tab.sidebarState?.selectedRowIndex ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  setSidebarRowIndex: (workspaceId, tabId, index) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                sidebarState: {
+                  isOpen: tab.sidebarState?.isOpen ?? false,
+                  mode: tab.sidebarState?.mode ?? 'record',
+                  selectedRowIndex: index,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  navigateSidebarRow: (workspaceId, tabId, direction) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const rowCount = tab.result?.rows.length ?? 0
+      const currentIndex = tab.sidebarState?.selectedRowIndex ?? 0
+
+      let newIndex = currentIndex
+      if (direction === 'prev' && currentIndex > 0) {
+        newIndex = currentIndex - 1
+      } else if (direction === 'next' && currentIndex < rowCount - 1) {
+        newIndex = currentIndex + 1
+      }
+
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                sidebarState: {
+                  ...tab.sidebarState!,
+                  selectedRowIndex: newIndex,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  // Editing operations
+  setPrimaryKeyColumns: (workspaceId, tabId, columns) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: columns,
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  addPendingChange: (workspaceId, tabId, change) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const key = `${change.rowIndex}-${change.columnName}`
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: {
+                    ...(tab.editingState?.pendingChanges ?? {}),
+                    [key]: change,
+                  },
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  removePendingChange: (workspaceId, tabId, key) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const { [key]: _removed, ...restChanges } = tab.editingState?.pendingChanges ?? {}
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: restChanges,
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  clearPendingChanges: (workspaceId, tabId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: {},
+                  editingCell: null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  setEditingCell: (workspaceId, tabId, cell) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  editingCell: cell,
+                },
+              },
             },
           },
         },

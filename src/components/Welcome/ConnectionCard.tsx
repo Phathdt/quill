@@ -1,13 +1,25 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import type { Connection } from '@/types/connection'
-import { Trash2 } from 'lucide-react'
+import type { Connection, ConnectionGroup } from '@/types/connection'
+import { Folder, MoreHorizontal, Trash2 } from 'lucide-react'
 
 interface ConnectionCardProps {
   connection: Connection
   onConnect: () => void
   onDelete: () => void
+  onMoveToGroup?: (groupId: string | null) => void
+  availableGroups?: ConnectionGroup[]
 }
 
 const TAG_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -23,7 +35,13 @@ const DB_BADGES: Record<string, { bg: string; text: string; label: string }> = {
   sqlite: { bg: 'bg-violet-500', text: 'text-white', label: 'Sl' },
 }
 
-export function ConnectionCard({ connection, onConnect, onDelete }: ConnectionCardProps) {
+export function ConnectionCard({
+  connection,
+  onConnect,
+  onDelete,
+  onMoveToGroup,
+  availableGroups = [],
+}: ConnectionCardProps) {
   const badge = DB_BADGES[connection.type] || DB_BADGES.postgres
   const tagVariant = TAG_VARIANTS[connection.tag || 'default'] || TAG_VARIANTS.default
 
@@ -67,18 +85,68 @@ export function ConnectionCard({ connection, onConnect, onDelete }: ConnectionCa
 
       {/* Actions */}
       <div className='opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity'>
-        <Button
-          variant='ghost'
-          size='icon'
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className='h-8 w-8 text-muted-foreground hover:text-destructive'
-        >
-          <Trash2 className='h-4 w-4' />
-          <span className='sr-only'>Delete connection</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant='ghost'
+              size='icon'
+              onClick={(e) => e.stopPropagation()}
+              className='h-8 w-8 text-muted-foreground'
+            >
+              <MoreHorizontal className='h-4 w-4' />
+              <span className='sr-only'>More options</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align='end' onClick={(e) => e.stopPropagation()}>
+            {onMoveToGroup && (
+              <>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Folder className='h-4 w-4 mr-2' />
+                    Move to Group
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        onMoveToGroup(null)
+                      }}
+                    >
+                      No Group
+                    </DropdownMenuItem>
+                    {availableGroups.length > 0 && <DropdownMenuSeparator />}
+                    {availableGroups.map((group) => (
+                      <DropdownMenuItem
+                        key={group.id}
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          onMoveToGroup(group.id)
+                        }}
+                        disabled={connection.groupId === group.id}
+                      >
+                        {group.color && (
+                          <div className='w-2 h-2 rounded-full mr-2' style={{ backgroundColor: group.color }} />
+                        )}
+                        {group.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault()
+                onDelete()
+              }}
+              className='text-destructive'
+            >
+              <Trash2 className='h-4 w-4 mr-2' />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   )

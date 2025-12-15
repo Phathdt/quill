@@ -36,7 +36,7 @@ export function Header({ onDisconnect }: HeaderProps) {
 
       {/* Logo */}
       <div className='flex items-center gap-2'>
-        <span className='text-xl'>🪶</span>
+        <img src='/icon.png' alt='Quill' className='w-6 h-6 object-contain' />
         <h1 className='text-lg font-semibold text-foreground'>Quill</h1>
       </div>
 

@@ -1,5 +1,6 @@
 import { DataGrid } from '@/components/DataGrid/DataGrid'
 import { GeneratedSqlBar } from '@/components/DataGrid/GeneratedSqlBar'
+import { RecordDetailSidebar } from '@/components/DataGrid/RecordDetailSidebar'
 import { QueryEditor } from '@/components/QueryEditor/QueryEditor'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 
@@ -19,20 +20,27 @@ export function WorkspaceContent() {
 
   // Table mode hides the SQL editor
   const isTableMode = activeTab?.type === 'table'
+  const sidebarState = activeTab?.sidebarState
 
   return (
-    <div className='flex-1 flex flex-col overflow-hidden'>
-      {/* Inner tab bar */}
-      <InnerTabBar />
-
-      {/* Content area: Editor (query mode only) + Results */}
+    <div className='flex-1 flex overflow-hidden'>
+      {/* Main content */}
       <div className='flex-1 flex flex-col overflow-hidden'>
-        {!isTableMode && <QueryEditor />}
-        {isTableMode && <GeneratedSqlBar />}
-        <div className='flex-1 overflow-hidden'>
-          <DataGrid />
+        {/* Inner tab bar */}
+        <InnerTabBar />
+
+        {/* Content area: Editor (query mode only) + Results */}
+        <div className='flex-1 flex flex-col overflow-hidden'>
+          {!isTableMode && <QueryEditor />}
+          {isTableMode && <GeneratedSqlBar />}
+          <div className='flex-1 overflow-hidden'>
+            <DataGrid />
+          </div>
         </div>
       </div>
+
+      {/* Sidebar panel */}
+      {sidebarState?.isOpen && sidebarState.mode === 'record' && <RecordDetailSidebar />}
     </div>
   )
 }

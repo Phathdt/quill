@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Column {
     pub name: String,
     pub type_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryResult {
     pub columns: Vec<Column>,
     pub rows: Vec<Vec<serde_json::Value>>,

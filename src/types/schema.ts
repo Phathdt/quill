@@ -11,6 +11,8 @@ export interface TableIndex {
   columns: string[]
   isUnique: boolean
   isPrimary: boolean
+  indexType: string
+  definition?: string
 }
 
 export interface ForeignKey {

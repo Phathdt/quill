@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
+import { Checkbox } from '@/components/ui/checkbox'
 import { useTableFilter } from '@/hooks/useTableFilter'
 import { copyRowToClipboard } from '@/lib/clipboard'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
@@ -23,7 +24,10 @@ import { GridToolbar } from './GridToolbar'
 type RowData = Record<string, string | number | boolean | null>
 
 export function DataGrid() {
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
+  const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
+  const setSidebarOpen = useWorkspaceManagerStore((s) => s.setSidebarOpen)
   const parentRef = useRef<HTMLDivElement>(null)
   const { applyFilters } = useTableFilter()
 
@@ -37,6 +41,9 @@ export function DataGrid() {
   // Row selection state
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
 
+  // Multi-row selection for delete (Phase 2)
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
+
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -45,9 +52,20 @@ export function DataGrid() {
     rowData: RowData
   } | null>(null)
 
+  // Check if table mode for checkbox column
+  const isTableMode = activeTab?.type === 'table'
+
+  const data = useMemo(() => {
+    if (!result?.rows) return []
+    return result.rows.map((row: unknown[]) =>
+      Object.fromEntries(row.map((val: unknown, idx: number) => [String(idx), val as string | number | boolean | null]))
+    )
+  }, [result?.rows])
+
   const columns = useMemo<ColumnDef<RowData>[]>(() => {
     if (!result?.columns) return []
-    return result.columns.map((col: Column, idx: number) => ({
+
+    const dataColumns = result.columns.map((col: Column, idx: number) => ({
       accessorKey: String(idx),
       header: col.name,
       size: 150,
@@ -60,14 +78,49 @@ export function DataGrid() {
         return <span title={str}>{str}</span>
       },
     }))
-  }, [result?.columns])
 
-  const data = useMemo(() => {
-    if (!result?.rows) return []
-    return result.rows.map((row: unknown[]) =>
-      Object.fromEntries(row.map((val: unknown, idx: number) => [String(idx), val as string | number | boolean | null]))
-    )
-  }, [result?.rows])
+    // Add checkbox column only in table mode
+    if (isTableMode) {
+      const selectionColumn: ColumnDef<RowData> = {
+        id: 'select',
+        header: () => (
+          <Checkbox
+            checked={selectedRows.size === data.length && data.length > 0}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                setSelectedRows(new Set(data.map((_, i) => i)))
+              } else {
+                setSelectedRows(new Set())
+              }
+            }}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={selectedRows.has(row.index)}
+            onCheckedChange={(checked) => {
+              setSelectedRows((prev) => {
+                const next = new Set(prev)
+                if (checked) {
+                  next.add(row.index)
+                } else {
+                  next.delete(row.index)
+                }
+                return next
+              })
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+        size: 40,
+        enableResizing: false,
+        enableSorting: false,
+      }
+      return [selectionColumn, ...dataColumns]
+    }
+
+    return dataColumns
+  }, [result?.columns, isTableMode, selectedRows, data])
 
   const table = useReactTable({
     data,
@@ -111,6 +164,24 @@ export function DataGrid() {
     estimateSize: () => 32,
     overscan: 20,
   })
+
+  // Row click handlers
+  const handleRowClick = (rowIndex: number) => {
+    setSelectedRowIndex(rowIndex)
+
+    // Update sidebar row index
+    if (activeWorkspace && activeTab) {
+      setSidebarRowIndex(activeWorkspace.id, activeTab.id, rowIndex)
+    }
+  }
+
+  // Double-click to open sidebar
+  const handleRowDoubleClick = (rowIndex: number) => {
+    if (activeWorkspace && activeTab) {
+      setSidebarRowIndex(activeWorkspace.id, activeTab.id, rowIndex)
+      setSidebarOpen(activeWorkspace.id, activeTab.id, true, 'record')
+    }
+  }
 
   // Keyboard shortcuts for copy
   useEffect(() => {
@@ -180,6 +251,7 @@ export function DataGrid() {
         columns={result.columns}
         rows={result.rows}
         onApplyFilters={applyFilters}
+        onRefresh={applyFilters}
       />
 
       {/* Main content area - separate flex container from scroll container */}
@@ -243,19 +315,21 @@ export function DataGrid() {
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const row = rows[virtualRow.index]
                 const isSelected = selectedRowIndex === virtualRow.index
+                const isEvenRow = virtualRow.index % 2 === 0
                 return (
                   <div
                     key={row.id}
                     data-index={virtualRow.index}
                     className={`flex border-b border-border hover:bg-accent transition-colors absolute left-0 cursor-pointer ${
-                      isSelected ? 'bg-accent/50' : ''
+                      isSelected ? 'bg-accent/50' : isEvenRow ? 'bg-background' : 'bg-muted'
                     }`}
                     style={{
                       height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`,
                       width: totalWidth,
                     }}
-                    onClick={() => setSelectedRowIndex(virtualRow.index)}
+                    onClick={() => handleRowClick(virtualRow.index)}
+                    onDoubleClick={() => handleRowDoubleClick(virtualRow.index)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <div

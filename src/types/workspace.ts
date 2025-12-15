@@ -1,4 +1,5 @@
 import type { QueryResult } from './database'
+import type { EditingState } from './editing'
 
 // Filter operators matching TablePlus
 export type FilterOperator =
@@ -40,6 +41,13 @@ export interface TableFilter {
   enabled: boolean
 }
 
+// Sidebar state
+export interface SidebarState {
+  isOpen: boolean
+  mode: 'record' | 'history'
+  selectedRowIndex: number | null
+}
+
 // Tab within workspace - can be query or table browser
 export interface Tab {
   id: string
@@ -53,6 +61,8 @@ export interface Tab {
   loading: boolean
   isDirty: boolean
   filters?: TableFilter[] // Only used for type='table'
+  sidebarState?: SidebarState
+  editingState?: EditingState // Only used for type='table'
 }
 
 // Single workspace state - 1 connection + multiple tabs
