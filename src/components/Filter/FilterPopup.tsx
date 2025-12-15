@@ -3,10 +3,11 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { filtersSchema } from '@/lib/filter-schema'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import type { Column } from '@/types/database'
 import type { TableFilter } from '@/types/workspace'
-import { Filter, Plus, X } from 'lucide-react'
+import { AlertCircle, Filter, Plus, X } from 'lucide-react'
 import { nanoid } from 'nanoid'
 
 import { FilterRow } from './FilterRow'
@@ -18,6 +19,7 @@ interface FilterPopupProps {
 
 export function FilterPopup({ columns, onApply }: FilterPopupProps) {
   const [open, setOpen] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
@@ -40,25 +42,50 @@ export function FilterPopup({ columns, onApply }: FilterPopupProps) {
       enabled: true,
     }
     addTabFilter(activeWorkspace.id, activeTab.id, newFilter)
+    setValidationError(null)
   }
 
   const handleUpdateFilter = (filterId: string, updates: Partial<TableFilter>) => {
     if (!activeWorkspace || !activeTab) return
     updateTabFilter(activeWorkspace.id, activeTab.id, filterId, updates)
+    setValidationError(null)
   }
 
   const handleRemoveFilter = (filterId: string) => {
     if (!activeWorkspace || !activeTab) return
     removeTabFilter(activeWorkspace.id, activeTab.id, filterId)
+    setValidationError(null)
   }
 
   const handleClear = () => {
     if (!activeWorkspace || !activeTab) return
     clearTabFilters(activeWorkspace.id, activeTab.id)
+    setValidationError(null)
   }
 
   const handleApply = () => {
+    // Validate all enabled filters before applying
+    const enabledFilters = filters.filter((f) => f.enabled)
+
+    if (enabledFilters.length === 0) {
+      // No filters to validate, just apply
+      setOpen(false)
+      setValidationError(null)
+      onApply()
+      return
+    }
+
+    const result = filtersSchema.safeParse(enabledFilters)
+
+    if (!result.success) {
+      // Show first validation error
+      const firstError = result.error.issues[0]
+      setValidationError(firstError ? `${firstError.path.join('.')}: ${firstError.message}` : 'Invalid filter')
+      return
+    }
+
     setOpen(false)
+    setValidationError(null)
     onApply()
   }
 
@@ -102,6 +129,14 @@ export function FilterPopup({ columns, onApply }: FilterPopupProps) {
             )}
           </div>
         </ScrollArea>
+
+        {/* Validation error banner */}
+        {validationError && (
+          <div className='flex items-center gap-2 px-4 py-2 bg-destructive/10 text-destructive text-xs border-t border-destructive/20'>
+            <AlertCircle className='h-3.5 w-3.5 shrink-0' />
+            <span>{validationError}</span>
+          </div>
+        )}
 
         <div className='flex items-center justify-between px-4 py-3 border-t border-border bg-muted/30'>
           <Button variant='ghost' size='sm' onClick={handleAddFilter} className='h-7 text-xs'>
