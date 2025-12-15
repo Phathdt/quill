@@ -85,3 +85,7 @@ export async function deleteRow(
 export async function deleteRows(workspaceId: string, tableName: string, rows: PrimaryKeyValue[][]): Promise<number> {
   return invoke<number>('delete_rows', { workspaceId, tableName, rows })
 }
+
+export async function disconnectAllWorkspaces(workspaceIds: string[]): Promise<void> {
+  await Promise.allSettled(workspaceIds.map((id) => disconnectWorkspace(id)))
+}

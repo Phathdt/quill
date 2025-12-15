@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
+import { disconnectAllWorkspaces } from '@/lib/tauri'
 import { WelcomePage, WorkspacePage } from '@/pages'
+import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
@@ -31,11 +33,29 @@ function clearStaleWorkspaceData() {
 
 function AppContent() {
   useGlobalShortcuts()
+  const workspaceOrder = useWorkspaceManagerStore((s) => s.workspaceOrder)
 
   // Clear stale data on mount
   useEffect(() => {
     clearStaleWorkspaceData()
   }, [])
+
+  // Cleanup connections when app closes
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Disconnect all active workspaces
+      if (workspaceOrder.length > 0) {
+        disconnectAllWorkspaces(workspaceOrder)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      // Also disconnect when component unmounts
+      handleBeforeUnload()
+    }
+  }, [workspaceOrder])
 
   return (
     <Routes>

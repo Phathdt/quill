@@ -46,7 +46,7 @@
     "sql-formatter": "^15.6.11",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^4.1.13",
+    "zod": "^4.2.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
