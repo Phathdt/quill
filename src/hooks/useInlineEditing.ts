@@ -17,8 +17,9 @@ export function useInlineEditing() {
   const editingState = activeTab?.editingState
   const isTableMode = activeTab?.type === 'table'
 
-  // Extract IDs for stable dependencies
+  // Extract for stable dependencies
   const workspaceId = activeWorkspace?.id
+  const workspaceTabs = activeWorkspace?.tabs
   const tabId = activeTab?.id
   const tableName = activeTab?.tableName
 
@@ -78,76 +79,111 @@ export function useInlineEditing() {
     setEditingCell(workspaceId, tabId, null)
   }, [workspaceId, tabId, setEditingCell])
 
+  // Save ALL pending changes across ALL table tabs in the workspace
   const savePendingChanges = useCallback(async () => {
-    if (!workspaceId || !tabId || !tabResult || !tableName) return
+    if (!workspaceId || !workspaceTabs) return
 
-    const pendingChanges = editingState?.pendingChanges ?? {}
-    const primaryKeys = editingState?.primaryKeyColumns ?? []
+    // Collect all tabs with pending changes
+    const allTabs = Object.values(workspaceTabs)
+    const tabsWithChanges = allTabs.filter((tab) => {
+      if (tab.type !== 'table' || !tab.tableName) return false
+      const changes = tab.editingState?.pendingChanges ?? {}
+      return Object.keys(changes).length > 0
+    })
 
-    if (Object.keys(pendingChanges).length === 0) return
+    if (tabsWithChanges.length === 0) return
 
-    if (primaryKeys.length === 0) {
-      toast.error('Cannot edit: No primary key found')
-      return
-    }
+    let totalRowsUpdated = 0
+    const errors: string[] = []
 
     try {
-      // Group changes by row
-      const changesByRow: Record<number, CellEdit[]> = {}
-      for (const change of Object.values(pendingChanges)) {
-        if (!changesByRow[change.rowIndex]) {
-          changesByRow[change.rowIndex] = []
+      for (const tab of tabsWithChanges) {
+        const tabTableName = tab.tableName!
+        const tabResultData = tab.result
+        const pendingChanges = tab.editingState?.pendingChanges ?? {}
+        const primaryKeys = tab.editingState?.primaryKeyColumns ?? []
+
+        if (!tabResultData || primaryKeys.length === 0) {
+          errors.push(`${tabTableName}: No primary key found`)
+          continue
         }
-        changesByRow[change.rowIndex].push(change)
-      }
 
-      // Update each row
-      for (const [rowIndexStr, changes] of Object.entries(changesByRow)) {
-        const rowIndex = parseInt(rowIndexStr, 10)
-        const row = tabResult.rows[rowIndex]
-
-        // Build primary key values
-        const pkValues = primaryKeys.map((pkCol) => {
-          const colIndex = tabResult.columns.findIndex((c) => c.name === pkCol)
-          return {
-            column: pkCol,
-            value: row[colIndex],
+        // Group changes by row
+        const changesByRow: Record<number, CellEdit[]> = {}
+        for (const change of Object.values(pendingChanges) as CellEdit[]) {
+          if (!changesByRow[change.rowIndex]) {
+            changesByRow[change.rowIndex] = []
           }
-        })
-
-        // Build updates
-        const updates = changes.map((change) => ({
-          column: change.columnName,
-          value: change.newValue,
-        }))
-
-        await updateRow(workspaceId, tableName, pkValues, updates)
-
-        // Update local result with new values
-        const newRows = [...tabResult.rows]
-        for (const change of changes) {
-          const colIndex = tabResult.columns.findIndex((c) => c.name === change.columnName)
-          newRows[rowIndex][colIndex] = change.newValue as string | number | boolean | null
+          changesByRow[change.rowIndex].push(change)
         }
 
-        setTabResult(workspaceId, tabId, {
-          ...tabResult,
-          rows: newRows,
-        })
+        // Update each row
+        for (const [rowIndexStr, rowChanges] of Object.entries(changesByRow)) {
+          const rowIndex = parseInt(rowIndexStr, 10)
+          const row = tabResultData.rows[rowIndex]
+
+          // Build primary key values
+          const pkValues = primaryKeys.map((pkCol: string) => {
+            const colIndex = tabResultData.columns.findIndex((c: { name: string }) => c.name === pkCol)
+            return {
+              column: pkCol,
+              value: row[colIndex],
+            }
+          })
+
+          // Build updates
+          const updates = rowChanges.map((change) => ({
+            column: change.columnName,
+            value: change.newValue,
+          }))
+
+          await updateRow(workspaceId, tabTableName, pkValues, updates)
+
+          // Update local result with new values
+          const newRows = [...tabResultData.rows]
+          for (const change of rowChanges) {
+            const colIndex = tabResultData.columns.findIndex((c: { name: string }) => c.name === change.columnName)
+            newRows[rowIndex][colIndex] = change.newValue as string | number | boolean | null
+          }
+
+          setTabResult(workspaceId, tab.id, {
+            ...tabResultData,
+            rows: newRows,
+          })
+
+          totalRowsUpdated++
+        }
+
+        clearPendingChanges(workspaceId, tab.id)
       }
 
-      clearPendingChanges(workspaceId, tabId)
-      toast.success(`Updated ${Object.keys(changesByRow).length} row(s)`)
+      if (errors.length > 0) {
+        toast.error(`Some updates failed: ${errors.join(', ')}`)
+      } else {
+        const tableCount = tabsWithChanges.length
+        toast.success(
+          `Updated ${totalRowsUpdated} row(s)${tableCount > 1 ? ` in ${tableCount} tables` : ''}`
+        )
+      }
     } catch (error) {
       console.error('Failed to save changes:', error)
       toast.error(`Failed to save changes: ${error}`)
     }
-  }, [workspaceId, tabId, tableName, tabResult, editingState, clearPendingChanges, setTabResult])
+  }, [workspaceId, workspaceTabs, clearPendingChanges, setTabResult])
 
+  // Discard ALL pending changes across ALL table tabs in the workspace
   const discardPendingChanges = useCallback(() => {
-    if (!workspaceId || !tabId) return
-    clearPendingChanges(workspaceId, tabId)
-  }, [workspaceId, tabId, clearPendingChanges])
+    if (!workspaceId || !workspaceTabs) return
+
+    // Clear pending changes from all table tabs
+    for (const tab of Object.values(workspaceTabs)) {
+      if (tab.type !== 'table') continue
+      const changes = tab.editingState?.pendingChanges ?? {}
+      if (Object.keys(changes).length > 0) {
+        clearPendingChanges(workspaceId, tab.id)
+      }
+    }
+  }, [workspaceId, workspaceTabs, clearPendingChanges])
 
   return {
     isTableMode,

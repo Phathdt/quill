@@ -72,15 +72,15 @@ Replace TablePlus for daily work.
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| Inline cell editing | P0 | ⬜ |
-| Insert/delete rows UI | P0 | ⬜ |
+| Inline cell editing | P0 | ✅ |
+| Insert/delete rows UI | P0 | ✅ |
 | MySQL support | P0 | ⬜ | <!-- Stays in Phase 2 per user decision -->
 | SSH tunneling | P1 | ⬜ |
-| SSL connections | P1 | ⬜ |
-| Import CSV/JSON | P1 | ⬜ |
-| Saved queries library | P1 | ⬜ |
-| Connection groups/folders | P2 | ⬜ |
-| Index information display | P2 | ⬜ |
+| SSL connections | P1 | ✅ |
+| Import CSV/JSON | P1 | ✅ |
+| Saved queries library | P1 | ✅ |
+| Connection groups/folders | P2 | ✅ |
+| Index information display | P2 | ✅ |
 
 ### Phase 3: Differentiation ✨
 Features that make Quill unique.

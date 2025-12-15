@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 
-import { copyCellToClipboard, copyRowsToClipboard, copyRowToClipboard } from '@/lib/clipboard'
+import { copyCellToClipboard, copyRowsToClipboard, copyRowToClipboard, copyAsCSV, copyAsJSON } from '@/lib/clipboard'
 import type { Column } from '@/types/database'
-import { Copy } from 'lucide-react'
+import { Copy, FileJson, FileSpreadsheet } from 'lucide-react'
 
 interface ContextMenuProps {
   x: number
@@ -56,6 +56,30 @@ export function ContextMenu({ x, y, onClose, cellValue, rowData, allRows, column
     onClose()
   }
 
+  const handleCopyRowAsCSV = () => {
+    const rowArray = columns.map((_, idx) => rowData[String(idx)])
+    copyAsCSV([rowArray], columns)
+    onClose()
+  }
+
+  const handleCopyRowAsJSON = () => {
+    const rowArray = columns.map((_, idx) => rowData[String(idx)])
+    copyAsJSON([rowArray], columns)
+    onClose()
+  }
+
+  const handleCopyAllAsCSV = () => {
+    const rowArrays = allRows.map(row => columns.map((_, idx) => row[String(idx)]))
+    copyAsCSV(rowArrays, columns)
+    onClose()
+  }
+
+  const handleCopyAllAsJSON = () => {
+    const rowArrays = allRows.map(row => columns.map((_, idx) => row[String(idx)]))
+    copyAsJSON(rowArrays, columns)
+    onClose()
+  }
+
   // Calculate position with viewport bounds check
   const menuWidth = 180
   const menuHeight = 120
@@ -82,6 +106,20 @@ export function ContextMenu({ x, y, onClose, cellValue, rowData, allRows, column
         <Copy className='h-4 w-4' />
         Copy Row
       </button>
+      <button
+        className='flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground transition-colors'
+        onClick={handleCopyRowAsCSV}
+      >
+        <FileSpreadsheet className='h-4 w-4' />
+        Copy Row as CSV
+      </button>
+      <button
+        className='flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground transition-colors'
+        onClick={handleCopyRowAsJSON}
+      >
+        <FileJson className='h-4 w-4' />
+        Copy Row as JSON
+      </button>
       <div className='my-1 h-px bg-border' />
       <button
         className='flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground transition-colors'
@@ -89,6 +127,20 @@ export function ContextMenu({ x, y, onClose, cellValue, rowData, allRows, column
       >
         <Copy className='h-4 w-4' />
         Copy All Rows
+      </button>
+      <button
+        className='flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground transition-colors'
+        onClick={handleCopyAllAsCSV}
+      >
+        <FileSpreadsheet className='h-4 w-4' />
+        Copy All as CSV
+      </button>
+      <button
+        className='flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground transition-colors'
+        onClick={handleCopyAllAsJSON}
+      >
+        <FileJson className='h-4 w-4' />
+        Copy All as JSON
       </button>
     </div>
   )
