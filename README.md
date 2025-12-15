@@ -142,8 +142,8 @@ Modern UX polish to compete with TablePlus.
 #### Welcome Page Improvements
 | Feature | Priority | Status | Description |
 |---------|----------|--------|-------------|
-| Adaptive Sidebar | P0 | ⬜ | Transform branding sidebar into action hub: recent connections, quick actions, connection stats |
-| Connection Cards 2.0 | P0 | ⬜ | Status indicators (connected/unreachable), environment labels (prod/dev), hover actions, last used timestamp |
+| Adaptive Sidebar | P0 | ✅ | Transform branding sidebar into action hub: recent connections, quick actions, connection stats |
+| Connection Cards 2.0 | P0 | ✅ | Status indicators (connected/unreachable), environment labels (prod/dev), hover actions, last used timestamp |
 | Connection Groups Enhancement | P1 | ⬜ | Custom colors, drag-drop reordering, connection count badges |
 | Smart Search | P2 | ⬜ | Search operators: `env:production`, `tag:client-A`, `last:today` |
 | Import/Export Connections | P2 | ⬜ | Migration from TablePlus/DBeaver, backup to JSON/CSV |
@@ -151,15 +151,15 @@ Modern UX polish to compete with TablePlus.
 #### Workspace Page Improvements
 | Feature | Priority | Status | Description |
 |---------|----------|--------|-------------|
-| Enhanced Status Bar | P0 | ⬜ | Query results (42 rows in 123ms), latency indicator, workspace count, schema name |
-| Empty State 2.0 | P0 | ⬜ | Actionable welcome: quick start buttons, tips, keyboard shortcuts hint |
+| Enhanced Status Bar | P0 | ✅ | Query results (42 rows in 123ms), latency indicator, workspace count, schema name |
+| Empty State 2.0 | P0 | ✅ | Actionable welcome: quick start buttons, tips, keyboard shortcuts hint |
 | Query Templates | P1 | ⬜ | Pre-built common queries: SHOW TABLES, DESCRIBE, COUNT, EXPLAIN |
 | Dashboard Mode | P2 | ⬜ | Overview of all open workspaces with metrics and quick actions |
 
 #### General UX
 | Feature | Priority | Status | Description |
 |---------|----------|--------|-------------|
-| Command Palette (Cmd+K) | P1 | ⬜ | Universal access to all actions with fuzzy search |
+| Command Palette (Cmd+K) | P1 | ✅ | Universal access to all actions with fuzzy search |
 | Keyboard Shortcuts Overlay | P1 | ⬜ | Press `?` to show all shortcuts, interactive tutorial |
 
 ### Phase 3: AI Features 🤖 (Future)

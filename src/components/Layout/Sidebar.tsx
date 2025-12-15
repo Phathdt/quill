@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { SavedQueriesPanel } from '@/components/SavedQueries/SavedQueriesPanel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { executeQuery } from '@/lib/tauri'
-import { cn, getErrorMessage, sanitizeSqlIdentifier } from '@/lib/utils'
-import { useQueryHistoryStore } from '@/stores/queryHistoryStore'
+import { useHistoryList, useTableList } from '@/hooks'
+import { cn } from '@/lib/utils'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import {
   AlertCircle,
@@ -22,30 +21,13 @@ import {
   Trash2,
 } from 'lucide-react'
 
-interface TableInfo {
-  name: string
-  type: 'table' | 'view'
-}
-
 type SidebarTab = 'items' | 'history' | 'queries'
 
 export function Sidebar() {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
-  const createTab = useWorkspaceManagerStore((s) => s.createTab)
-  const setTabLoading = useWorkspaceManagerStore((s) => s.setTabLoading)
-  const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
-  const setTabError = useWorkspaceManagerStore((s) => s.setTabError)
   const setTabSql = useWorkspaceManagerStore((s) => s.setTabSql)
-  const findTableTab = useWorkspaceManagerStore((s) => s.findTableTab)
-  const switchTab = useWorkspaceManagerStore((s) => s.switchTab)
 
-  const historyByWorkspace = useQueryHistoryStore((s) => s.historyByWorkspace)
-  const loadWorkspaceHistory = useQueryHistoryStore((s) => s.loadWorkspaceHistory)
-  const removeHistoryEntry = useQueryHistoryStore((s) => s.removeEntry)
-
-  const [tables, setTables] = useState<TableInfo[]>([])
-  const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('items')
   const [searchQuery, setSearchQuery] = useState('')
@@ -53,127 +35,17 @@ export function Sidebar() {
   const isConnected = activeWorkspace?.isConnected ?? false
   const workspaceId = activeWorkspace?.id
 
-  const loadTables = useCallback(async () => {
-    if (!isConnected || !workspaceId) return
+  // Tables logic extracted to hook
+  const { tables, loading, loadTables, openTable } = useTableList(workspaceId, isConnected)
 
-    setLoading(true)
-    try {
-      // Try PostgreSQL query first
-      const result = await executeQuery(
-        workspaceId,
-        `
-        SELECT table_name as name, 'table' as type
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-        ORDER BY table_name
-      `
-      )
-
-      if (result.rows.length > 0) {
-        setTables(
-          result.rows.map((row) => ({
-            name: String(row[0]),
-            type: (String(row[1]) as 'table' | 'view') || 'table',
-          }))
-        )
-      }
-    } catch {
-      // Fallback to SQLite
-      try {
-        const result = await executeQuery(
-          workspaceId,
-          `
-          SELECT name, type FROM sqlite_master
-          WHERE type IN ('table', 'view')
-          AND name NOT LIKE 'sqlite_%'
-          ORDER BY name
-        `
-        )
-        setTables(
-          result.rows.map((row) => ({
-            name: String(row[0]),
-            type: (String(row[1]) as 'table' | 'view') || 'table',
-          }))
-        )
-      } catch {
-        setTables([])
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [isConnected, workspaceId])
-
-  useEffect(() => {
-    if (isConnected && workspaceId) {
-      loadTables()
-      // Load history for this workspace
-      loadWorkspaceHistory(workspaceId)
-    } else {
-      setTables([])
-    }
-  }, [isConnected, workspaceId, loadTables, loadWorkspaceHistory])
-
-  // Handle table click - focus existing tab or create new one
-  const handleTableClick = async (tableName: string) => {
-    if (!isConnected || !workspaceId) return
-
-    const safeTableName = sanitizeSqlIdentifier(tableName)
-
-    // Check if tab for this table already exists
-    const existingTabId = findTableTab(workspaceId, safeTableName)
-    if (existingTabId) {
-      switchTab(workspaceId, existingTabId)
-      return
-    }
-
-    // Create new tab if not exists
-    const tabId = createTab(workspaceId, 'table', tableName, safeTableName)
-
-    setTabLoading(workspaceId, tabId, true)
-    try {
-      const sql = `SELECT * FROM "${safeTableName}" LIMIT 100`
-      const result = await executeQuery(workspaceId, sql)
-      setTabResult(workspaceId, tabId, result)
-    } catch (error) {
-      setTabError(workspaceId, tabId, getErrorMessage(error))
-    } finally {
-      setTabLoading(workspaceId, tabId, false)
-    }
-  }
-
-  // Get history for current workspace
-  const history = workspaceId ? historyByWorkspace[workspaceId] || [] : []
-
-  // Filter history by search
-  const filteredHistory = history.filter((entry) => {
-    if (!searchQuery.trim()) return true
-    return entry.sql.toLowerCase().includes(searchQuery.toLowerCase())
-  })
+  // History logic extracted to hook
+  const { history, loadHistoryEntry, removeEntry, formatRelativeTime } = useHistoryList(workspaceId, searchQuery)
 
   // Filter tables by search
-  const filteredTables = tables.filter((table) => {
-    if (!searchQuery.trim()) return true
-    return table.name.toLowerCase().includes(searchQuery.toLowerCase())
-  })
-
-  // Load history entry into editor
-  const handleHistoryClick = (sql: string) => {
-    if (activeWorkspace && activeTab) {
-      setTabSql(activeWorkspace.id, activeTab.id, sql)
-    }
-  }
-
-  // Format relative time
-  const formatRelativeTime = (timestamp: number) => {
-    const seconds = Math.floor((Date.now() - timestamp) / 1000)
-    if (seconds < 60) return 'just now'
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    return `${days}d ago`
-  }
+  const filteredTables = useMemo(() => {
+    if (!searchQuery.trim()) return tables
+    return tables.filter((table) => table.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  }, [tables, searchQuery])
 
   // Handle saved query selection
   const handleSelectSavedQuery = (sql: string) => {
@@ -271,7 +143,7 @@ export function Sidebar() {
                         key={table.name}
                         variant='ghost'
                         className='w-full justify-start gap-2 h-auto py-1 px-2 text-sm font-normal'
-                        onClick={() => handleTableClick(table.name)}
+                        onClick={() => openTable(table.name)}
                       >
                         <Table className='h-4 w-4 text-muted-foreground' />
                         <span className='truncate'>{table.name}</span>
@@ -284,16 +156,16 @@ export function Sidebar() {
           </div>
         ) : (
           <div className='flex flex-col'>
-            {filteredHistory.length === 0 ? (
+            {history.length === 0 ? (
               <div className='p-4 text-center text-sm text-muted-foreground'>
                 {searchQuery ? 'No matching queries' : 'No query history yet'}
               </div>
             ) : (
-              filteredHistory.map((entry) => (
+              history.map((entry) => (
                 <div
                   key={entry.id}
                   className='group relative px-3 py-2 border-b border-border hover:bg-accent/50 cursor-pointer transition-colors'
-                  onClick={() => handleHistoryClick(entry.sql)}
+                  onClick={() => loadHistoryEntry(entry.sql)}
                 >
                   {/* SQL preview */}
                   <p className='text-xs font-mono text-foreground truncate pr-6' title={entry.sql}>
@@ -322,9 +194,7 @@ export function Sidebar() {
                     className='absolute right-2 top-2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all'
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (workspaceId) {
-                        removeHistoryEntry(workspaceId, entry.id)
-                      }
+                      removeEntry(entry.id)
                     }}
                   >
                     <Trash2 className='h-3 w-3' />

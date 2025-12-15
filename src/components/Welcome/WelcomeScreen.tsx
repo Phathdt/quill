@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
-
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useWelcomeFilter } from '@/hooks'
 import { useConnectionStore } from '@/stores/connectionStore'
 import type { Connection } from '@/types/connection'
-import { Database, Plus, Search, X } from 'lucide-react'
+import { Database, Search, X } from 'lucide-react'
 
+import { AdaptiveSidebar } from './AdaptiveSidebar'
 import { ConnectionCard } from './ConnectionCard'
 import { ConnectionGroupHeader } from './ConnectionGroupHeader'
 import { DatabaseTypeModal } from './DatabaseTypeModal'
@@ -17,76 +17,29 @@ interface WelcomeScreenProps {
 }
 
 export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
-  const [search, setSearch] = useState('')
-  const [showTypeModal, setShowTypeModal] = useState(false)
-  const [showNewModal, setShowNewModal] = useState(false)
-  const [selectedDbType, setSelectedDbType] = useState<'postgres' | 'sqlite'>('postgres')
-
-  const connections = useConnectionStore((s) => s.connections)
   const groups = useConnectionStore((s) => s.groups)
-  const getGroupedConnections = useConnectionStore((s) => s.getGroupedConnections)
   const moveToGroup = useConnectionStore((s) => s.moveToGroup)
   const removeConnection = useConnectionStore((s) => s.removeConnection)
 
-  const filteredGroupedConnections = useMemo(() => {
-    const groupedConns = getGroupedConnections()
-
-    if (!search.trim()) return groupedConns
-
-    const term = search.toLowerCase()
-    return (
-      groupedConns
-        .map(({ group, connections: conns }) => ({
-          group,
-          connections: conns.filter(
-            (c) =>
-              c.name.toLowerCase().includes(term) ||
-              c.host?.toLowerCase().includes(term) ||
-              c.database?.toLowerCase().includes(term)
-          ),
-        }))
-        // Keep groups even if they have no matching connections (for empty group display)
-        .filter(({ group, connections: conns }) => conns.length > 0 || group !== null)
-    )
-  }, [getGroupedConnections, search])
-
-  // Check if we have any content to show (connections or groups)
-  const hasContent = connections.length > 0 || Object.keys(groups).length > 0
-
-  const handleSelectType = (type: 'postgres' | 'sqlite') => {
-    setSelectedDbType(type)
-    setShowTypeModal(false)
-    setShowNewModal(true)
-  }
-
-  const handleCreateConnection = () => {
-    setShowTypeModal(true)
-  }
+  // Filter logic extracted to hook
+  const {
+    search,
+    setSearch,
+    filteredGroupedConnections,
+    hasContent,
+    showTypeModal,
+    setShowTypeModal,
+    showNewModal,
+    setShowNewModal,
+    selectedDbType,
+    handleSelectType,
+    handleCreateConnection,
+  } = useWelcomeFilter()
 
   return (
     <div className='flex h-screen bg-background'>
-      {/* Left Sidebar - Branding */}
-      <aside className='w-72 bg-card border-r border-border flex flex-col'>
-        {/* Logo Area */}
-        <div className='flex-1 flex flex-col items-center justify-center p-8'>
-          <div className='w-32 h-32 mb-6'>
-            <img src='/icon.png' alt='Quill' className='w-full h-full object-contain' />
-          </div>
-          <h1 className='text-3xl font-bold text-foreground tracking-tight'>Quill</h1>
-          <p className='text-muted-foreground text-sm mt-1'>Write data, beautifully</p>
-          <p className='text-muted-foreground/50 text-xs mt-4'>Version 0.1.0</p>
-        </div>
-
-        {/* Bottom Actions */}
-        <div className='p-4 space-y-2'>
-          <Button onClick={handleCreateConnection} variant='secondary' className='w-full justify-start gap-3'>
-            <div className='w-8 h-8 rounded-full bg-muted flex items-center justify-center'>
-              <Plus className='w-4 h-4' />
-            </div>
-            <span className='text-sm font-medium'>Create connection...</span>
-          </Button>
-        </div>
-      </aside>
+      {/* Left Sidebar - Adaptive Sidebar */}
+      <AdaptiveSidebar onConnect={onConnect} onCreateConnection={handleCreateConnection} />
 
       {/* Main Content - Connection List */}
       <main className='flex-1 flex flex-col bg-background'>

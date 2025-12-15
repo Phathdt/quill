@@ -1,1 +1,7 @@
+export { useCommandPalette } from './useCommandPalette'
+export { useCommandPaletteKeyboard } from './useCommandPaletteKeyboard'
 export { useExecuteQuery } from './useExecuteQuery'
+export { useHistoryList } from './useHistoryList'
+export { useTableList } from './useTableList'
+export { useWelcomeFilter } from './useWelcomeFilter'
+export { useConnectionFromRoute, useWorkspaceConnection } from './useWorkspaceConnection'

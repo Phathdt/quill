@@ -4,18 +4,24 @@ import { RecordDetailSidebar } from '@/components/DataGrid/RecordDetailSidebar'
 import { QueryEditor } from '@/components/QueryEditor/QueryEditor'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 
+import { EmptyState } from './EmptyState'
 import { InnerTabBar } from './InnerTabBar'
 
 export function WorkspaceContent() {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
+  const createTab = useWorkspaceManagerStore((s) => s.createTab)
 
-  if (!activeWorkspace?.isConnected) {
-    return (
-      <div className='flex-1 flex items-center justify-center text-muted-foreground'>
-        Not connected. Select a connection to start.
-      </div>
-    )
+  // Handler for creating new tab from empty state
+  const handleCreateTab = () => {
+    if (activeWorkspace) {
+      createTab(activeWorkspace.id, 'query', 'SQL Query')
+    }
+  }
+
+  // Show empty state when not connected OR when no active tab
+  if (!activeWorkspace?.isConnected || !activeTab) {
+    return <EmptyState onCreateTab={handleCreateTab} />
   }
 
   // Table mode hides the SQL editor

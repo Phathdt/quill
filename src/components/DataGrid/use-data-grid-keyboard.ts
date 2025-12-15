@@ -204,14 +204,17 @@ export function useDataGridKeyboard({
       }
 
       // Mark selected rows for deletion (Cmd+X, Delete, Backspace)
-      if (isTableMode && !editingCell && selectedRows.size > 0) {
+      if (isTableMode && !editingCell) {
         const isDeleteKey = e.key === 'Delete' || e.key === 'Backspace' || ((e.metaKey || e.ctrlKey) && e.key === 'x')
-        if (isDeleteKey && activeWorkspace && activeTab) {
+
+        // Use selectedRows if available, otherwise fall back to selectedRowIndex
+        const rowsToMark =
+          selectedRows.size > 0 ? Array.from(selectedRows) : selectedRowIndex !== null ? [selectedRowIndex] : []
+
+        if (isDeleteKey && activeWorkspace && activeTab && rowsToMark.length > 0) {
           e.preventDefault()
           const existingRowCount = result?.rows?.length ?? 0
-          const rowsToDelete = Array.from(selectedRows).filter(
-            (idx) => idx < existingRowCount && !pendingDeletes.has(idx)
-          )
+          const rowsToDelete = rowsToMark.filter((idx) => idx < existingRowCount && !pendingDeletes.has(idx))
           if (rowsToDelete.length > 0) {
             addPendingDeletes(activeWorkspace.id, activeTab.id, rowsToDelete)
             toast.success(`${rowsToDelete.length} row(s) marked for deletion (Cmd+S to apply)`)
@@ -246,13 +249,19 @@ export function useDataGridKeyboard({
           case 'ArrowUp':
             if (focusedCell.row > 0) {
               e.preventDefault()
-              setFocusedCell({ row: focusedCell.row - 1, col: focusedCell.col })
+              const newRow = focusedCell.row - 1
+              setFocusedCell({ row: newRow, col: focusedCell.col })
+              // Also update selection to match focused row
+              setSelectedRows(new Set([newRow]))
             }
             break
           case 'ArrowDown':
             if (focusedCell.row < totalRows - 1) {
               e.preventDefault()
-              setFocusedCell({ row: focusedCell.row + 1, col: focusedCell.col })
+              const newRow = focusedCell.row + 1
+              setFocusedCell({ row: newRow, col: focusedCell.col })
+              // Also update selection to match focused row
+              setSelectedRows(new Set([newRow]))
             }
             break
           case 'ArrowLeft':

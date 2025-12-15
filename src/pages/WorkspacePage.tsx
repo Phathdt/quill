@@ -3,25 +3,25 @@ import { useState } from 'react'
 import { Shell } from '@/components/Layout/Shell'
 import { Button } from '@/components/ui/button'
 import { ConnectModal, WorkspaceContent } from '@/components/Workspace'
-import { disconnectWorkspace } from '@/lib/tauri'
+import { useConnectionFromRoute, useWorkspaceConnection } from '@/hooks'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 import { Database } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 export function WorkspacePage() {
   const navigate = useNavigate()
+  const { connectionId } = useParams<{ connectionId?: string }>()
   const [showConnectModal, setShowConnectModal] = useState(false)
+
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
-  const closeWorkspace = useWorkspaceManagerStore((s) => s.closeWorkspace)
+
+  // Connection logic extracted to hooks
+  const { disconnect } = useWorkspaceConnection()
+  const { error: routeError } = useConnectionFromRoute(connectionId, (path, replace) => navigate(path, { replace }))
 
   // Close a specific workspace (from ActivityBar context menu)
   const handleCloseWorkspace = async (workspaceId: string, isLastWorkspace: boolean) => {
-    try {
-      await disconnectWorkspace(workspaceId)
-    } catch {
-      // Ignore disconnect errors
-    }
-    closeWorkspace(workspaceId)
+    await disconnect(workspaceId)
 
     // If last workspace closed, go to welcome
     if (isLastWorkspace) {
@@ -49,6 +49,11 @@ export function WorkspacePage() {
       onCloseWorkspace={handleCloseWorkspace}
     >
       <div className='flex flex-col h-full'>
+        {routeError && (
+          <div className='mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm'>
+            {routeError}
+          </div>
+        )}
         {activeWorkspace?.isConnected ? (
           <WorkspaceContent />
         ) : (

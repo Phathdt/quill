@@ -27,9 +27,13 @@ interface ConnectionStore {
   // Connection-Group management
   moveToGroup: (connectionId: string, groupId: string | null) => void
 
+  // lastUsedAt tracking
+  updateLastUsedAt: (id: string) => void
+
   // Selectors
   getConnectionsByGroup: (groupId: string | null) => Connection[]
   getGroupedConnections: () => { group: ConnectionGroup | null; connections: Connection[] }[]
+  getRecentConnections: (limit?: number) => Connection[]
 }
 
 export const useConnectionStore = create<ConnectionStore>()(
@@ -111,6 +115,13 @@ export const useConnectionStore = create<ConnectionStore>()(
         }))
       },
 
+      // lastUsedAt tracking
+      updateLastUsedAt: (id) => {
+        set((s) => ({
+          connections: s.connections.map((c) => (c.id === id ? { ...c, lastUsedAt: Date.now() } : c)),
+        }))
+      },
+
       // Selectors
       getConnectionsByGroup: (groupId) => {
         const s = get()
@@ -140,6 +151,14 @@ export const useConnectionStore = create<ConnectionStore>()(
         })
 
         return result
+      },
+
+      getRecentConnections: (limit = 5) => {
+        const s = get()
+        return [...s.connections]
+          .filter((c) => c.lastUsedAt)
+          .sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0))
+          .slice(0, limit)
       },
     }),
     {

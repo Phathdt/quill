@@ -30,6 +30,7 @@ export interface Connection {
   tag?: string
   statusColor?: string
   createdAt: number
+  lastUsedAt?: number // Track last connection time
   // Group organization
   groupId?: string
 }

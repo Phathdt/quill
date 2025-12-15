@@ -22,17 +22,33 @@ interface ConnectionCardProps {
   availableGroups?: ConnectionGroup[]
 }
 
-const TAG_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  local: 'default',
-  development: 'default',
-  staging: 'secondary',
-  production: 'destructive',
-  default: 'outline',
+const TAG_VARIANTS: Record<
+  string,
+  { variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string }
+> = {
+  local: { variant: 'outline', className: 'border-blue-500 text-blue-500' },
+  development: { variant: 'outline', className: 'border-emerald-500 text-emerald-500' },
+  staging: { variant: 'secondary', className: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
+  production: { variant: 'destructive', className: 'bg-red-500/10 text-red-600 border-red-500/30' },
+  default: { variant: 'outline' },
 }
 
 const DB_BADGES: Record<string, { bg: string; text: string; label: string }> = {
   postgres: { bg: 'bg-sky-500', text: 'text-white', label: 'Pg' },
   sqlite: { bg: 'bg-violet-500', text: 'text-white', label: 'Sl' },
+}
+
+function formatLastUsed(timestamp?: number): string | null {
+  if (!timestamp) return null
+  const seconds = Math.floor((Date.now() - timestamp) / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return new Date(timestamp).toLocaleDateString()
 }
 
 export function ConnectionCard({
@@ -43,7 +59,7 @@ export function ConnectionCard({
   availableGroups = [],
 }: ConnectionCardProps) {
   const badge = DB_BADGES[connection.type] || DB_BADGES.postgres
-  const tagVariant = TAG_VARIANTS[connection.tag || 'default'] || TAG_VARIANTS.default
+  const tagConfig = TAG_VARIANTS[connection.tag || 'default'] || TAG_VARIANTS.default
 
   const getConnectionInfo = () => {
     if (connection.type === 'sqlite') {
@@ -75,12 +91,15 @@ export function ConnectionCard({
         <div className='flex items-center gap-2'>
           <span className='font-medium text-foreground truncate'>{connection.name}</span>
           {connection.tag && (
-            <Badge variant={tagVariant} className='text-xs'>
+            <Badge variant={tagConfig.variant} className={cn('text-xs', tagConfig.className)}>
               {connection.tag}
             </Badge>
           )}
         </div>
         <div className='text-sm text-muted-foreground truncate'>{getConnectionInfo()}</div>
+        {connection.lastUsedAt && (
+          <div className='text-xs text-muted-foreground'>{formatLastUsed(connection.lastUsedAt)}</div>
+        )}
       </div>
 
       {/* Actions */}
