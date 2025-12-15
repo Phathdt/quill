@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/tauri'
 
 import type { QueryResult } from '@/types/database'
+import type { TableStructure } from '@/types/schema'
 
 export async function executeQuery(workspaceId: string, sql: string): Promise<QueryResult> {
   return invoke<QueryResult>('execute_query', { workspaceId, sql })
@@ -20,4 +21,12 @@ export async function getWorkspaceConnectionStatus(workspaceId: string): Promise
 
 export async function testConnection(connectionString: string): Promise<string> {
   return invoke<string>('test_connection', { connectionString })
+}
+
+export async function getTableStructure(workspaceId: string, tableName: string): Promise<TableStructure> {
+  return invoke<TableStructure>('get_table_structure', { workspaceId, tableName })
+}
+
+export async function getTablesList(workspaceId: string): Promise<string[]> {
+  return invoke<string[]>('get_tables_list', { workspaceId })
 }

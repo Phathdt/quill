@@ -1,8 +1,10 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import Editor, { type OnMount } from '@monaco-editor/react'
 
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
+import { createSqlCompletionProvider } from '@/lib/sql-autocomplete'
+import { useSchemaStore } from '@/stores/schemaStore'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
 
 import { EditorToolbar } from './EditorToolbar'
@@ -14,7 +16,21 @@ export function QueryEditor() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorRef = useRef<any>(null)
+  const completionProviderRef = useRef<{ dispose: () => void } | null>(null)
   const { execute } = useExecuteQuery()
+
+  // Use ref to always have latest execute function
+  const executeRef = useRef(execute)
+  useEffect(() => {
+    executeRef.current = execute
+  }, [execute])
+
+  // Load schema on workspace change
+  useEffect(() => {
+    if (activeWorkspace?.id && activeWorkspace.isConnected) {
+      useSchemaStore.getState().loadSchema(activeWorkspace.id)
+    }
+  }, [activeWorkspace?.id, activeWorkspace?.isConnected])
 
   const handleChange = useCallback(
     (value: string | undefined) => {
@@ -28,16 +44,34 @@ export function QueryEditor() {
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor
 
-    // Add Ctrl+Enter keybinding
+    // Dispose previous provider
+    completionProviderRef.current?.dispose()
+
+    // Register SQL autocomplete
+    if (activeWorkspace?.id) {
+      completionProviderRef.current = monaco.languages.registerCompletionItemProvider(
+        'sql',
+        createSqlCompletionProvider(activeWorkspace.id, monaco)
+      )
+    }
+
+    // Add Cmd/Ctrl+Enter keybinding - use ref to avoid stale closure
     editor.addAction({
       id: 'execute-query',
       label: 'Execute Query',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
       run: () => {
-        execute()
+        executeRef.current()
       },
     })
   }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      completionProviderRef.current?.dispose()
+    }
+  }, [])
 
   if (!activeTab) {
     return (

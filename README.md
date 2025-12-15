@@ -51,21 +51,21 @@ Complete multi-database workflow support.
 
 **Design Decision:** Workspaces are session-only (no persistence on restart). Closing last workspace redirects to welcome page.
 
-### Phase 1: MVP Table Stakes 🎯 (Next)
+### Phase 1: MVP Table Stakes ✅ (Complete)
 Features every database GUI user expects.
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| Export to CSV/JSON | P0 | ⬜ |
-| Copy cell/row to clipboard | P0 | ⬜ |
-| Column resizing | P0 | ⬜ |
-| Keyboard shortcuts (Cmd+T/W/Enter) | P0 | ⬜ |
-| Query history UI | P0 | ⬜ |
-| Table structure view (columns, types, constraints) | P0 | ⬜ |
-| SQL formatter (prettify) | P0 | ⬜ |
-| Sort columns (click header) | P0 | ⬜ |
-| Filter columns | P1 | ⬜ |
-| Full SQL autocomplete (tables, columns, JOINs, subqueries, keywords) | P1 | ⬜ |
+| Export to CSV/JSON | P0 | ✅ |
+| Copy cell/row to clipboard | P0 | ✅ |
+| Column resizing | P0 | ✅ |
+| Keyboard shortcuts (Cmd+T/W/Enter) | P0 | ✅ |
+| Query history UI | P0 | ✅ |
+| Table structure view (columns, types, constraints) | P0 | ✅ |
+| SQL formatter (prettify) | P0 | ✅ |
+| Sort columns (click header) | P0 | ✅ |
+| Filter columns (SQL-based, table mode) | P1 | ✅ |
+| Full SQL autocomplete (tables, columns, JOINs, subqueries, keywords) | P1 | ✅ |
 
 ### Phase 2: Daily Driver 🚗
 Replace TablePlus for daily work.
@@ -115,11 +115,11 @@ Features that make Quill unique.
 
 These can be implemented quickly for immediate value:
 
-1. ⬜ Copy cell value (Cmd+C)
-2. ⬜ SQL formatter button (sql-formatter npm)
-3. ⬜ Export current result as CSV
-4. ⬜ Column header click to sort
-5. ⬜ Basic keyboard shortcuts
+1. ✅ Copy cell value (Cmd+C)
+2. ✅ SQL formatter button (sql-formatter npm)
+3. ✅ Export current result as CSV
+4. ✅ Column header click to sort
+5. ✅ Basic keyboard shortcuts
 
 ---
 
@@ -203,6 +203,14 @@ src-tauri/              # Rust backend
 │   └── main.rs         # Entry point
 └── Cargo.toml
 ```
+
+---
+
+## Known Issues
+
+| Issue | Description | Workaround | Status |
+|-------|-------------|------------|--------|
+| DataGrid scrollbar disappears on resize | Scrollbars may disappear after window resize on macOS due to Tauri WebView/WebKit rendering bug | Re-execute query or switch tabs to force re-render | Investigating |
 
 ---
 

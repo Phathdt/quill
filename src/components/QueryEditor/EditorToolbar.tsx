@@ -1,7 +1,9 @@
 import { Button } from '@/components/ui/button'
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
+import { formatSql } from '@/lib/sql-formatter'
+import { useSchemaStore } from '@/stores/schemaStore'
 import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
-import { Eraser, Loader2, Play } from 'lucide-react'
+import { Code, Eraser, Loader2, Play, RefreshCw } from 'lucide-react'
 
 export function EditorToolbar() {
   const { execute, loading } = useExecuteQuery()
@@ -17,6 +19,21 @@ export function EditorToolbar() {
 
   const handleExecute = () => {
     execute()
+  }
+
+  const handleFormat = () => {
+    if (activeWorkspace && activeTab?.sql) {
+      const dbType = activeWorkspace.dbType
+      const language = dbType === 'postgres' ? 'postgresql' : 'sqlite'
+      const formatted = formatSql(activeTab.sql, language)
+      setTabSql(activeWorkspace.id, activeTab.id, formatted)
+    }
+  }
+
+  const handleRefreshSchema = () => {
+    if (activeWorkspace?.id) {
+      useSchemaStore.getState().refreshSchema(activeWorkspace.id)
+    }
   }
 
   return (
@@ -37,6 +54,21 @@ export function EditorToolbar() {
       <Button onClick={handleClear} variant='ghost' size='sm'>
         <Eraser className='h-4 w-4 mr-2' />
         Clear
+      </Button>
+
+      <Button onClick={handleFormat} variant='ghost' size='sm' disabled={!activeTab?.sql}>
+        <Code className='h-4 w-4 mr-2' />
+        Format
+      </Button>
+
+      <Button
+        onClick={handleRefreshSchema}
+        variant='ghost'
+        size='sm'
+        className='h-8'
+        title='Refresh schema for autocomplete'
+      >
+        <RefreshCw className='h-4 w-4' />
       </Button>
 
       <div className='flex-1' />

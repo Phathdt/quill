@@ -16,6 +16,36 @@
       "shell": {
         "all": false,
         "open": true
+      },
+      "dialog": {
+        "all": false,
+        "save": true
+      },
+      "fs": {
+        "all": false,
+        "writeFile": true,
+        "readFile": true,
+        "createDir": true,
+        "exists": true,
+        "scope": [
+          "$DOCUMENT/*",
+          "$DOCUMENT/**",
+          "$DOWNLOAD/*",
+          "$DOWNLOAD/**",
+          "$DESKTOP/*",
+          "$DESKTOP/**",
+          "$HOME/*",
+          "$HOME/**",
+          "$APPDATA/*",
+          "$APPDATA/**",
+          "$CONFIG/*",
+          "$CONFIG/**",
+          "$DATA/*",
+          "$DATA/**"
+        ]
+      },
+      "path": {
+        "all": true
       }
     },
     "windows": [

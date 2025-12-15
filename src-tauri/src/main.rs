@@ -17,6 +17,8 @@ fn main() {
             commands::query::disconnect_workspace,
             commands::query::get_workspace_connection_status,
             commands::query::test_connection,
+            commands::schema::get_table_structure,
+            commands::schema::get_tables_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

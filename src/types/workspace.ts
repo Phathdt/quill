@@ -1,5 +1,45 @@
 import type { QueryResult } from './database'
 
+// Filter operators matching TablePlus
+export type FilterOperator =
+  // Comparison
+  | '='
+  | '<>'
+  | '<'
+  | '>'
+  | '<='
+  | '>='
+  // Set
+  | 'IN'
+  | 'NOT IN'
+  // Null
+  | 'IS NULL'
+  | 'IS NOT NULL'
+  // Range
+  | 'BETWEEN'
+  | 'NOT BETWEEN'
+  // Pattern matching
+  | 'LIKE'
+  | 'ILIKE'
+  | 'CONTAINS'
+  | 'NOT_CONTAINS'
+  | 'CONTAINS_CI'
+  | 'NOT_CONTAINS_CI'
+  | 'HAS_PREFIX'
+  | 'HAS_SUFFIX'
+  | 'HAS_PREFIX_CI'
+  | 'HAS_SUFFIX_CI'
+
+// Single filter condition
+export interface TableFilter {
+  id: string
+  column: string
+  operator: FilterOperator
+  value: string
+  value2?: string // For BETWEEN operator
+  enabled: boolean
+}
+
 // Tab within workspace - can be query or table browser
 export interface Tab {
   id: string
@@ -12,6 +52,7 @@ export interface Tab {
   error: string | null
   loading: boolean
   isDirty: boolean
+  filters?: TableFilter[] // Only used for type='table'
 }
 
 // Single workspace state - 1 connection + multiple tabs

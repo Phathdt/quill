@@ -1,6 +1,6 @@
 import type { Connection } from '@/types/connection'
 import type { QueryResult } from '@/types/database'
-import type { DbType, Tab, Workspace, WorkspaceManagerState } from '@/types/workspace'
+import type { DbType, Tab, TableFilter, Workspace, WorkspaceManagerState } from '@/types/workspace'
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 
@@ -38,6 +38,13 @@ interface WorkspaceManagerStore extends WorkspaceManagerState {
   setTabResult: (workspaceId: string, tabId: string, result: QueryResult) => void
   setTabError: (workspaceId: string, tabId: string, error: string | null) => void
   setTabLoading: (workspaceId: string, tabId: string, loading: boolean) => void
+
+  // Filter operations (table mode only)
+  setTabFilters: (workspaceId: string, tabId: string, filters: TableFilter[]) => void
+  addTabFilter: (workspaceId: string, tabId: string, filter: TableFilter) => void
+  updateTabFilter: (workspaceId: string, tabId: string, filterId: string, updates: Partial<TableFilter>) => void
+  removeTabFilter: (workspaceId: string, tabId: string, filterId: string) => void
+  clearTabFilters: (workspaceId: string, tabId: string) => void
 
   // Selectors
   getActiveWorkspace: () => Workspace | null
@@ -146,6 +153,7 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
       error: null,
       loading: false,
       isDirty: false,
+      filters: type === 'table' ? [] : undefined,
     }
 
     set((s) => {
@@ -272,6 +280,108 @@ export const useWorkspaceManagerStore = create<WorkspaceManagerStore>((set, get)
             tabs: {
               ...ws.tabs,
               [tabId]: { ...ws.tabs[tabId], loading },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  // Filter operations
+  setTabFilters: (workspaceId, tabId, filters) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: { ...ws.tabs[tabId], filters },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  addTabFilter: (workspaceId, tabId, filter) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const filters = [...(tab.filters || []), filter]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: { ...tab, filters },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  updateTabFilter: (workspaceId, tabId, filterId, updates) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const filters = (tab.filters || []).map((f) => (f.id === filterId ? { ...f, ...updates } : f))
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: { ...tab, filters },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  removeTabFilter: (workspaceId, tabId, filterId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      const filters = (tab.filters || []).filter((f) => f.id !== filterId)
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: { ...tab, filters },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  clearTabFilters: (workspaceId, tabId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: { ...ws.tabs[tabId], filters: [] },
             },
           },
         },
