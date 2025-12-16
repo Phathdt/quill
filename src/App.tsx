@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 
 import { CommandPalette } from '@/components/CommandPalette/CommandPalette'
+import { KeyboardShortcutsOverlay } from '@/components/Layout/KeyboardShortcutsOverlay'
+import { SaveQueryDialog } from '@/components/SavedQueries/SaveQueryDialog'
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
 import { disconnectAllWorkspaces } from '@/lib/tauri'
 import { WelcomePage, WorkspacePage } from '@/pages'
@@ -33,8 +35,10 @@ function clearStaleWorkspaceData() {
 }
 
 function AppContent() {
-  useGlobalShortcuts()
+  const { shortcutsOpen, setShortcutsOpen, saveDialogOpen, setSaveDialogOpen } = useGlobalShortcuts()
   const workspaceOrder = useWorkspaceManagerStore((s) => s.workspaceOrder)
+  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
 
   // Clear stale data on mount
   useEffect(() => {
@@ -70,6 +74,17 @@ function AppContent() {
 
       {/* Global Command Palette */}
       <CommandPalette />
+
+      {/* Keyboard Shortcuts Overlay */}
+      <KeyboardShortcutsOverlay open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+
+      {/* Global Save Query Dialog (triggered by Cmd+Shift+S) */}
+      <SaveQueryDialog
+        isOpen={saveDialogOpen}
+        onClose={() => setSaveDialogOpen(false)}
+        sql={activeTab?.sql ?? ''}
+        connectionType={activeWorkspace?.dbType}
+      />
     </>
   )
 }

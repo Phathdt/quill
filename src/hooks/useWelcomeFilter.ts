@@ -17,7 +17,12 @@ export function useWelcomeFilter() {
   const getGroupedConnections = useConnectionStore((s) => s.getGroupedConnections)
 
   // Filter grouped connections by search term
+  // Note: groups/connections in deps trigger re-render when store state changes
   const filteredGroupedConnections = useMemo(() => {
+    // Reference groups and connections to satisfy eslint (they trigger reactivity)
+    void groups
+    void connections
+
     const groupedConns = getGroupedConnections()
 
     if (!search.trim()) return groupedConns
@@ -37,7 +42,7 @@ export function useWelcomeFilter() {
         // Keep groups even if they have no matching connections (for empty group display)
         .filter(({ group, connections: conns }) => conns.length > 0 || group !== null)
     )
-  }, [getGroupedConnections, search])
+  }, [getGroupedConnections, search, groups, connections])
 
   // Check if we have any content to show (connections or groups)
   const hasContent = connections.length > 0 || Object.keys(groups).length > 0

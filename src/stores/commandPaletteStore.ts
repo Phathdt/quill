@@ -6,7 +6,7 @@ export interface CommandAction {
   description?: string
   icon?: React.ComponentType<{ className?: string }>
   shortcut?: string[]
-  category: 'navigation' | 'workspace' | 'connection' | 'query' | 'general'
+  category: 'navigation' | 'workspace' | 'connection' | 'query' | 'general' | 'template'
   action: () => void
   keywords?: string[]
 }

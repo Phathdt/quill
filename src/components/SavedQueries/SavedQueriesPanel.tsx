@@ -1,9 +1,12 @@
+import { useMemo } from 'react'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useSavedQueriesStore } from '@/stores/savedQueriesStore'
+import type { SavedQuery } from '@/types/saved-query'
 import { Copy, Search, Star, Trash2 } from 'lucide-react'
 
 interface SavedQueriesPanelProps {
@@ -12,7 +15,8 @@ interface SavedQueriesPanelProps {
 }
 
 export function SavedQueriesPanel({ onSelectQuery, onClose }: SavedQueriesPanelProps) {
-  const queries = useSavedQueriesStore((s) => s.getFilteredQueries())
+  const queriesMap = useSavedQueriesStore((s) => s.queries)
+  const queryOrder = useSavedQueriesStore((s) => s.queryOrder)
   const tags = useSavedQueriesStore((s) => s.tags)
   const searchQuery = useSavedQueriesStore((s) => s.searchQuery)
   const selectedTags = useSavedQueriesStore((s) => s.selectedTags)
@@ -21,6 +25,36 @@ export function SavedQueriesPanel({ onSelectQuery, onClose }: SavedQueriesPanelP
   const toggleFavorite = useSavedQueriesStore((s) => s.toggleFavorite)
   const deleteQuery = useSavedQueriesStore((s) => s.deleteQuery)
   const duplicateQuery = useSavedQueriesStore((s) => s.duplicateQuery)
+
+  // Compute filtered queries with proper reactivity
+  const queries = useMemo(() => {
+    return queryOrder
+      .map((id) => queriesMap[id])
+      .filter((q): q is SavedQuery => {
+        if (!q) return false
+
+        // Search filter
+        if (searchQuery) {
+          const search = searchQuery.toLowerCase()
+          const matchesName = q.name.toLowerCase().includes(search)
+          const matchesSql = q.sql.toLowerCase().includes(search)
+          const matchesDesc = q.description?.toLowerCase().includes(search)
+          if (!matchesName && !matchesSql && !matchesDesc) return false
+        }
+
+        // Tag filter
+        if (selectedTags.length > 0) {
+          if (!selectedTags.some((tag) => q.tags.includes(tag))) return false
+        }
+
+        return true
+      })
+      .sort((a, b) => {
+        // Favorites first, then by updatedAt
+        if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      })
+  }, [queriesMap, queryOrder, searchQuery, selectedTags])
 
   const handleLoadQuery = (sql: string) => {
     onSelectQuery(sql)

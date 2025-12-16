@@ -1,3 +1,15 @@
+import {
+  DndContext,
+  PointerSensor,
+  pointerWithin,
+  rectIntersection,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useWelcomeFilter } from '@/hooks'
@@ -11,6 +23,27 @@ import { ConnectionGroupHeader } from './ConnectionGroupHeader'
 import { DatabaseTypeModal } from './DatabaseTypeModal'
 import { NewConnectionModal } from './NewConnectionModal'
 
+// Custom collision detection that prioritizes drop zones
+const customCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args)
+
+  // Prioritize group-drop zones over group sortables
+  const dropZoneCollisions = pointerCollisions.filter(
+    (collision) => collision.data?.droppableContainer?.data?.current?.type === 'group-drop'
+  )
+
+  if (dropZoneCollisions.length > 0) {
+    return dropZoneCollisions
+  }
+
+  // Fall back to rect intersection for better detection
+  if (pointerCollisions.length === 0) {
+    return rectIntersection(args)
+  }
+
+  return pointerCollisions
+}
+
 interface WelcomeScreenProps {
   onConnect: (connection: Connection) => void
   error?: string | null
@@ -18,8 +51,10 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
   const groups = useConnectionStore((s) => s.groups)
+  const groupOrder = useConnectionStore((s) => s.groupOrder)
   const moveToGroup = useConnectionStore((s) => s.moveToGroup)
   const removeConnection = useConnectionStore((s) => s.removeConnection)
+  const reorderGroups = useConnectionStore((s) => s.reorderGroups)
 
   // Filter logic extracted to hook
   const {
@@ -35,6 +70,49 @@ export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
     handleSelectType,
     handleCreateConnection,
   } = useWelcomeFilter()
+
+  // Drag-and-drop state and handlers
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) return
+
+    const activeType = active.data.current?.type
+    const overType = over.data.current?.type
+
+    // Handle connection dropped on group drop zone
+    if (activeType === 'connection' && overType === 'group-drop') {
+      const connectionId = (active.id as string).replace('connection-', '')
+      const targetGroupId = over.data.current?.groupId as string | null
+      moveToGroup(connectionId, targetGroupId)
+      return
+    }
+
+    // Handle connection dropped on group header (sortable)
+    if (activeType === 'connection' && overType === 'group') {
+      const connectionId = (active.id as string).replace('connection-', '')
+      const targetGroupId = over.data.current?.group?.id as string
+      if (targetGroupId) {
+        moveToGroup(connectionId, targetGroupId)
+      }
+      return
+    }
+
+    // Handle group reordering
+    if (activeType === 'group' && overType === 'group') {
+      const oldIndex = groupOrder.indexOf(active.id as string)
+      const newIndex = groupOrder.indexOf(over.id as string)
+      if (oldIndex !== -1 && newIndex !== -1) {
+        reorderGroups(oldIndex, newIndex)
+      }
+    }
+  }
 
   return (
     <div className='flex h-screen bg-background'>
@@ -94,28 +172,49 @@ export function WelcomeScreen({ onConnect, error }: WelcomeScreenProps) {
               <p className='text-sm mt-1'>Try a different search term</p>
             </div>
           ) : (
-            <div className='space-y-1'>
-              {filteredGroupedConnections.map(({ group, connections }) => (
-                <div key={group?.id ?? 'ungrouped'}>
-                  {group && <ConnectionGroupHeader group={group} connectionCount={connections.length} />}
+            <DndContext sensors={sensors} collisionDetection={customCollisionDetection} onDragEnd={handleDragEnd}>
+              <div className='space-y-1'>
+                {/* Ungrouped connections - no header, just cards */}
+                {filteredGroupedConnections
+                  .find(({ group }) => group === null)
+                  ?.connections.map((conn) => (
+                    <ConnectionCard
+                      key={conn.id}
+                      connection={conn}
+                      onConnect={() => onConnect(conn)}
+                      onDelete={() => removeConnection(conn.id)}
+                      onMoveToGroup={(groupId) => moveToGroup(conn.id, groupId)}
+                      availableGroups={Object.values(groups)}
+                    />
+                  ))}
 
-                  {(!group || group.isExpanded) && (
-                    <div className={group ? 'ml-4' : ''}>
-                      {connections.map((conn) => (
-                        <ConnectionCard
-                          key={conn.id}
-                          connection={conn}
-                          onConnect={() => onConnect(conn)}
-                          onDelete={() => removeConnection(conn.id)}
-                          onMoveToGroup={(groupId) => moveToGroup(conn.id, groupId)}
-                          availableGroups={Object.values(groups)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                {/* Groups section */}
+                <SortableContext items={groupOrder} strategy={verticalListSortingStrategy}>
+                  {filteredGroupedConnections
+                    .filter(({ group }) => group !== null)
+                    .map(({ group, connections }) => (
+                      <div key={group!.id}>
+                        <ConnectionGroupHeader group={group!} connectionCount={connections.length} />
+
+                        {group!.isExpanded && (
+                          <div className='ml-4'>
+                            {connections.map((conn) => (
+                              <ConnectionCard
+                                key={conn.id}
+                                connection={conn}
+                                onConnect={() => onConnect(conn)}
+                                onDelete={() => removeConnection(conn.id)}
+                                onMoveToGroup={(groupId) => moveToGroup(conn.id, groupId)}
+                                availableGroups={Object.values(groups)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </SortableContext>
+              </div>
+            </DndContext>
           )}
         </div>
       </main>

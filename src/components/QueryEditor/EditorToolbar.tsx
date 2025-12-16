@@ -8,6 +8,8 @@ import { useSchemaStore } from '@/stores/schemaStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { BookmarkPlus, Code, Eraser, Loader2, Play, RefreshCw } from 'lucide-react'
 
+import { TemplateMenu } from './TemplateMenu'
+
 export function EditorToolbar() {
   const { execute, loading } = useExecuteQuery()
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
@@ -64,6 +66,8 @@ export function EditorToolbar() {
         <Code className='h-4 w-4 mr-2' />
         Format
       </Button>
+
+      <TemplateMenu />
 
       <Button
         onClick={handleRefreshSchema}

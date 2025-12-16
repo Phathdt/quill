@@ -151,8 +151,19 @@ export function useDataGridKeyboard({
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      // Copy rows (Cmd+C)
+      // Skip if target is an input, textarea, or contenteditable (like Monaco editor)
+      const target = e.target as HTMLElement
+      const isEditorOrInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.closest('.monaco-editor') !== null
+
+      // Copy rows (Cmd+C) - only handle for data grid, let editor handle its own copy
       if ((e.metaKey || e.ctrlKey) && e.key === 'c' && !editingCell) {
+        // Skip if typing in editor/input - let native copy work
+        if (isEditorOrInput) return
+
         const hasMultiSelect = selectedRows.size > 0
         const hasSingleSelect = selectedRowIndex !== null
 
@@ -182,13 +193,16 @@ export function useDataGridKeyboard({
         }
       }
 
-      // Paste rows (Cmd+V)
+      // Paste rows (Cmd+V) - only handle in table mode, let editor handle its own paste
       if ((e.metaKey || e.ctrlKey) && e.key === 'v' && !editingCell) {
-        e.preventDefault()
+        // Skip if typing in editor/input - let native paste work
+        if (isEditorOrInput) return
+
         if (!isTableMode) {
-          toast.error('Paste only works in table mode')
+          // Not in table mode and not in editor - don't intercept
           return
         }
+        e.preventDefault()
         await handlePasteRows()
       }
 
@@ -228,8 +242,11 @@ export function useDataGridKeyboard({
         cancelEditing()
       }
 
-      // Select all (Cmd+A)
+      // Select all (Cmd+A) - only handle in data grid, let editor handle its own select all
       if ((e.metaKey || e.ctrlKey) && e.key === 'a' && isTableMode && !editingCell) {
+        // Skip if typing in editor/input - let native select all work
+        if (isEditorOrInput) return
+
         e.preventDefault()
         if (rows.length === 0) return
         const allIndices = new Set<number>()

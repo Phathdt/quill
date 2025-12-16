@@ -1,10 +1,11 @@
 import { useCallback, useMemo } from 'react'
 
+import { getTemplateSql, QUERY_TEMPLATES } from '@/lib/query-templates'
 import { formatSql } from '@/lib/sql-formatter'
 import { useCommandPaletteStore, type CommandAction } from '@/stores/commandPaletteStore'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
-import { Database, FileText, Home, Wand2 } from 'lucide-react'
+import { Database, FileCode, FileText, Home, Wand2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export function useCommandPalette() {
@@ -74,6 +75,30 @@ export function useCommandPalette() {
           keywords: ['format', 'beautify', 'sql'],
         })
       }
+
+      // Add query templates (only templates without variables for simplicity)
+      const dbType = activeWorkspace.dbType
+      QUERY_TEMPLATES.filter((t) => !t.variables?.length).forEach((template) => {
+        list.push({
+          id: `template-${template.id}`,
+          label: template.name,
+          description: template.description,
+          icon: FileCode,
+          category: 'template',
+          action: withClose(() => {
+            const sql = getTemplateSql(template, dbType)
+            const existingSql = activeTab?.sql?.trim()
+            const newSql = existingSql ? `${existingSql}\n\n${sql}` : sql
+            setTabSql(activeWorkspace.id, activeTab!.id, newSql)
+            // Focus editor
+            setTimeout(() => {
+              const editor = document.querySelector('.monaco-editor textarea') as HTMLTextAreaElement
+              editor?.focus()
+            }, 100)
+          }),
+          keywords: ['template', 'sql', template.name.toLowerCase(), template.category],
+        })
+      })
     }
 
     // Connection actions

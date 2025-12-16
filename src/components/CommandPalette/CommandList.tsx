@@ -13,9 +13,17 @@ const CATEGORY_LABELS: Record<CommandAction['category'], string> = {
   connection: 'Connections',
   query: 'Query',
   general: 'General',
+  template: 'Templates',
 }
 
-const CATEGORY_ORDER: CommandAction['category'][] = ['query', 'navigation', 'workspace', 'connection', 'general']
+const CATEGORY_ORDER: CommandAction['category'][] = [
+  'query',
+  'template',
+  'navigation',
+  'workspace',
+  'connection',
+  'general',
+]
 
 export function CommandList({ actions }: CommandListProps) {
   // Group actions by category

@@ -1,3 +1,5 @@
+import { useDraggable } from '@dnd-kit/core'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import type { Connection, ConnectionGroup } from '@/types/connection'
-import { Folder, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Folder, GripVertical, MoreHorizontal, Trash2 } from 'lucide-react'
 
 interface ConnectionCardProps {
   connection: Connection
@@ -61,6 +63,13 @@ export function ConnectionCard({
   const badge = DB_BADGES[connection.type] || DB_BADGES.postgres
   const tagConfig = TAG_VARIANTS[connection.tag || 'default'] || TAG_VARIANTS.default
 
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `connection-${connection.id}`,
+    data: { type: 'connection', connection },
+  })
+
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
+
   const getConnectionInfo = () => {
     if (connection.type === 'sqlite') {
       return connection.path || 'In-memory'
@@ -72,9 +81,23 @@ export function ConnectionCard({
 
   return (
     <div
-      className='group flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors'
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'group flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors',
+        isDragging && 'opacity-50 z-50'
+      )}
       onClick={onConnect}
     >
+      {/* Drag Handle */}
+      <button
+        {...listeners}
+        {...attributes}
+        onClick={(e) => e.stopPropagation()}
+        className='cursor-grab active:cursor-grabbing p-0.5 -ml-1 touch-none'
+      >
+        <GripVertical className='h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground transition-colors' />
+      </button>
       {/* Database Type Badge */}
       <div
         className={cn(

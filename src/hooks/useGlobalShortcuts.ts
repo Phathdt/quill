@@ -1,8 +1,12 @@
+import { useState } from 'react'
+
 import { formatSql } from '@/lib/sql-formatter'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { useHotkeys } from 'react-hotkeys-hook'
 
 export function useGlobalShortcuts() {
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const createTab = useWorkspaceManagerStore((s) => s.createTab)
@@ -70,4 +74,28 @@ export function useGlobalShortcuts() {
     },
     { enableOnFormTags: true }
   )
+
+  // F1: Show keyboard shortcuts overlay
+  useHotkeys(
+    'f1',
+    (e) => {
+      e.preventDefault()
+      setShortcutsOpen((prev) => !prev)
+    },
+    { enableOnFormTags: false, enableOnContentEditable: false }
+  )
+
+  // Cmd+Shift+S: Save query
+  useHotkeys(
+    'meta+shift+s',
+    (e) => {
+      e.preventDefault()
+      if (activeTab?.sql?.trim()) {
+        setSaveDialogOpen(true)
+      }
+    },
+    { enableOnFormTags: true }
+  )
+
+  return { shortcutsOpen, setShortcutsOpen, saveDialogOpen, setSaveDialogOpen }
 }

@@ -134,9 +134,9 @@ Modern UX to compete with TablePlus.
 | Enhanced Status Bar           | P0       | ✅     | Row count, latency, workspace count, schema/type |
 | Empty State 2.0               | P0       | ✅     | Quick start buttons, shortcuts hint              |
 | Command Palette (Cmd+K)       | P1       | ✅     | Universal actions with fuzzy search              |
-| Connection Groups Enhancement | P1       | ⬜     | Custom colors, drag-drop, count badges           |
-| Query Templates               | P1       | ⬜     | Pre-built: SHOW TABLES, DESCRIBE, COUNT          |
-| Keyboard Shortcuts Overlay    | P1       | ⬜     | Press `?` to show all shortcuts                  |
+| Connection Groups Enhancement | P1       | ✅     | Custom colors, drag-drop, count badges           |
+| Query Templates               | P1       | ✅     | Pre-built: SHOW TABLES, DESCRIBE, COUNT          |
+| Keyboard Shortcuts Overlay    | P1       | ✅     | Press F1 to show all shortcuts                   |
 | Smart Search                  | P2       | ⬜     | Operators: `env:production`, `last:today`        |
 | Dashboard Mode                | P2       | ⬜     | Overview of all workspaces with metrics          |
 | Import/Export Connections     | P2       | ⬜     | Migration from TablePlus/DBeaver                 |
