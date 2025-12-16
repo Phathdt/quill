@@ -136,8 +136,8 @@ Replace TablePlus for daily work.
 | Connection groups/folders | P2 | ✅ |
 | Index information display | P2 | ✅ |
 
-### Phase 2.5: UI/UX Improvements 🎨 (Current)
-Modern UX polish to compete with TablePlus.
+### Phase 2.5: UI/UX Improvements 🎨 (Current - Partial Complete)
+Modern UX polish to compete with TablePlus. Phase 2.5 initial release focused on welcome screen and workspace enhancements.
 
 #### Welcome Page Improvements
 | Feature | Priority | Status | Description |
@@ -151,15 +151,15 @@ Modern UX polish to compete with TablePlus.
 #### Workspace Page Improvements
 | Feature | Priority | Status | Description |
 |---------|----------|--------|-------------|
-| Enhanced Status Bar | P0 | ✅ | Query results (42 rows in 123ms), latency indicator, workspace count, schema name |
-| Empty State 2.0 | P0 | ✅ | Actionable welcome: quick start buttons, tips, keyboard shortcuts hint |
+| Enhanced Status Bar | P0 | ✅ | Query results (row count in X ms), latency indicator, workspace count, schema name, DB type |
+| Empty State 2.0 | P0 | ✅ | Actionable welcome: quick start buttons, keyboard shortcuts hint, connection status |
 | Query Templates | P1 | ⬜ | Pre-built common queries: SHOW TABLES, DESCRIBE, COUNT, EXPLAIN |
 | Dashboard Mode | P2 | ⬜ | Overview of all open workspaces with metrics and quick actions |
 
 #### General UX
 | Feature | Priority | Status | Description |
 |---------|----------|--------|-------------|
-| Command Palette (Cmd+K) | P1 | ✅ | Universal access to all actions with fuzzy search |
+| Command Palette (Cmd+K) | P1 | ✅ | Universal access to all actions with fuzzy search (using cmdk library) |
 | Keyboard Shortcuts Overlay | P1 | ⬜ | Press `?` to show all shortcuts, interactive tutorial |
 
 ### Phase 3: AI Features 🤖 (Future)
