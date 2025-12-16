@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/context-menu'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Plus, Table, Terminal, X } from 'lucide-react'
 
 export function InnerTabBar() {

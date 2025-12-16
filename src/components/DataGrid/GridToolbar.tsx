@@ -5,7 +5,7 @@ import { ImportDialog } from '@/components/Import/ImportDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { exportToCsv, exportToJson } from '@/lib/export'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Column } from '@/types/database'
 import { Download, History, PanelRight, Upload } from 'lucide-react'
 

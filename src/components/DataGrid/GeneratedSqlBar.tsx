@@ -1,4 +1,4 @@
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Code } from 'lucide-react'
 
 export function GeneratedSqlBar() {

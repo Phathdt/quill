@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { DB_COLORS } from '@/types/workspace'
 import { ChevronLeft } from 'lucide-react'
 

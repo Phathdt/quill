@@ -4,7 +4,7 @@ import { CommandPalette } from '@/components/CommandPalette/CommandPalette'
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
 import { disconnectAllWorkspaces } from '@/lib/tauri'
 import { WelcomePage, WorkspacePage } from '@/pages'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 

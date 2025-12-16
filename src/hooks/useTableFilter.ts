@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { generateTableQuery } from '@/lib/sql-filter'
 import { executeQuery } from '@/lib/tauri'
 import { getErrorMessage } from '@/lib/utils'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 
 export function useTableFilter() {
   const applyFilters = useCallback(async () => {

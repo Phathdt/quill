@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
 import { formatSql } from '@/lib/sql-formatter'
 import { useSchemaStore } from '@/stores/schemaStore'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { BookmarkPlus, Code, Eraser, Loader2, Play, RefreshCw } from 'lucide-react'
 
 export function EditorToolbar() {

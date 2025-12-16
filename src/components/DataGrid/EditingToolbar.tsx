@@ -5,7 +5,7 @@ import Editor from '@monaco-editor/react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from '@/lib/toast'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { CellEdit, PendingNewRow } from '@/types/editing'
 import { Check, Code, Copy, X } from 'lucide-react'
 

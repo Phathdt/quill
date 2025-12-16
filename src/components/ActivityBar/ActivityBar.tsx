@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Home, Plus, Settings } from 'lucide-react'
 
 import { WorkspaceIcon } from './WorkspaceIcon'

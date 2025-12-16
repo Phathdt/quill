@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react'
 
 import { deleteRows, getPrimaryKey, insertRow, updateRow } from '@/lib/tauri'
 import { toast } from '@/lib/toast'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { CellEdit } from '@/types/editing'
 
 export function useInlineEditing() {

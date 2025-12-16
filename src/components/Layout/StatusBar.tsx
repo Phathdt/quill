@@ -1,6 +1,6 @@
 import { useQueryStats } from '@/hooks/useQueryStats'
 import { cn } from '@/lib/utils'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { DB_COLORS } from '@/types/workspace'
 import { Activity, Database, Layers, Rows3, Timer } from 'lucide-react'
 

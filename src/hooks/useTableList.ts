@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { executeQuery } from '@/lib/tauri'
 import { getErrorMessage, sanitizeSqlIdentifier } from '@/lib/utils'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 
 interface TableInfo {
   name: string

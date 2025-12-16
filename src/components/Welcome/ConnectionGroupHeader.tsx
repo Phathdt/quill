@@ -12,20 +12,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { GROUP_COLORS_WITH_LABELS } from '@/lib/const'
 import { useConnectionStore } from '@/stores/connectionStore'
 import type { ConnectionGroup } from '@/types/connection'
 import { ChevronDown, ChevronRight, MoreHorizontal, Palette, Pencil, Trash2 } from 'lucide-react'
-
-const GROUP_COLORS = [
-  { value: '#ef4444', label: 'Red' },
-  { value: '#f97316', label: 'Orange' },
-  { value: '#eab308', label: 'Yellow' },
-  { value: '#22c55e', label: 'Green' },
-  { value: '#06b6d4', label: 'Cyan' },
-  { value: '#3b82f6', label: 'Blue' },
-  { value: '#8b5cf6', label: 'Violet' },
-  { value: '#ec4899', label: 'Pink' },
-]
 
 interface ConnectionGroupHeaderProps {
   group: ConnectionGroup
@@ -90,7 +80,7 @@ export function ConnectionGroupHeader({ group, connectionCount }: ConnectionGrou
               Change Color
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              {GROUP_COLORS.map((color) => (
+              {GROUP_COLORS_WITH_LABELS.map((color) => (
                 <DropdownMenuItem key={color.value} onSelect={() => updateGroup(group.id, { color: color.value })}>
                   <div className='w-4 h-4 rounded-full mr-2' style={{ backgroundColor: color.value }} />
                   {color.label}

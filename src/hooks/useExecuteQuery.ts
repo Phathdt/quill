@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { executeQuery } from '@/lib/tauri'
 import { getErrorMessage } from '@/lib/utils'
 import { useQueryHistoryStore } from '@/stores/queryHistoryStore'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 
 export function useExecuteQuery() {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())

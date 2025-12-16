@@ -4,7 +4,7 @@ import { Shell } from '@/components/Layout/Shell'
 import { Button } from '@/components/ui/button'
 import { ConnectModal, WorkspaceContent } from '@/components/Workspace'
 import { useConnectionFromRoute, useWorkspaceConnection } from '@/hooks'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Database } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 

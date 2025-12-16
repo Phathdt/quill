@@ -14,7 +14,7 @@ import { useInlineEditing } from '@/hooks/useInlineEditing'
 import { useTableFilter } from '@/hooks/useTableFilter'
 import { deleteRows, getPrimaryKey, insertRow } from '@/lib/tauri'
 import { toast } from '@/lib/toast'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Column } from '@/types/database'
 import { AlertCircle, FileText, Loader2 } from 'lucide-react'
 

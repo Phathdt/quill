@@ -3,20 +3,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { GROUP_COLORS } from '@/lib/const'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-
-const GROUP_COLORS = [
-  '#ef4444', // red
-  '#f97316', // orange
-  '#eab308', // yellow
-  '#22c55e', // green
-  '#06b6d4', // cyan
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-]
 
 const groupSchema = z.object({
   name: z.string().min(1, 'Group name is required').max(50, 'Name too long'),

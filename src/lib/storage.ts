@@ -1,15 +1,14 @@
 import { createDir, exists, readTextFile, writeTextFile } from '@tauri-apps/api/fs'
 import { appDataDir, join } from '@tauri-apps/api/path'
 
-const DATA_DIR = 'quill-data'
-const HISTORY_DIR = 'history'
+import { STORAGE_DATA_DIR, STORAGE_HISTORY_DIR } from './const'
 
 /**
  * Get the app data directory path
  */
 async function getDataPath(...segments: string[]): Promise<string> {
   const appData = await appDataDir()
-  return join(appData, DATA_DIR, ...segments)
+  return join(appData, STORAGE_DATA_DIR, ...segments)
 }
 
 /**
@@ -60,7 +59,7 @@ export async function writeJsonFile<T>(filename: string, data: T): Promise<void>
  */
 export async function readWorkspaceHistory(workspaceId: string): Promise<unknown[]> {
   try {
-    const historyDir = await getDataPath(HISTORY_DIR)
+    const historyDir = await getDataPath(STORAGE_HISTORY_DIR)
     await ensureDir(historyDir)
 
     const filePath = await join(historyDir, `${workspaceId}.json`)
@@ -80,7 +79,7 @@ export async function readWorkspaceHistory(workspaceId: string): Promise<unknown
  */
 export async function writeWorkspaceHistory(workspaceId: string, history: unknown[]): Promise<void> {
   try {
-    const historyDir = await getDataPath(HISTORY_DIR)
+    const historyDir = await getDataPath(STORAGE_HISTORY_DIR)
     await ensureDir(historyDir)
 
     const filePath = await join(historyDir, `${workspaceId}.json`)

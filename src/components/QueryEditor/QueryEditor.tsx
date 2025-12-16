@@ -5,7 +5,7 @@ import Editor, { type OnMount } from '@monaco-editor/react'
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
 import { createSqlCompletionProvider } from '@/lib/sql-autocomplete'
 import { useSchemaStore } from '@/stores/schemaStore'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 
 import { EditorToolbar } from './EditorToolbar'
 

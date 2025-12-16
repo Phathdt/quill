@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 
 import { useQueryHistoryStore } from '@/stores/queryHistoryStore'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 
 /**
  * Hook to manage query history for a workspace

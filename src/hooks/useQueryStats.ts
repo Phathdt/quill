@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 
 export interface QueryStats {
   rowCount: number | null

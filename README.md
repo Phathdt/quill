@@ -297,6 +297,46 @@ Enterprise-grade features.
 | Cloud sync (settings across devices) | P3 | ⬜ |
 | Plugin/extension system | P3 | ⬜ |
 
+### Phase 7: Multi-Provider Architecture 🔌 (Future)
+Scalable architecture to support multiple database paradigms.
+
+> **Plan:** [`plans/20251216-multi-provider-architecture/`](./plans/20251216-multi-provider-architecture/)
+
+#### Architecture Overview
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Provider Traits (Rust)                   │
+├─────────────────────────────────────────────────────────────┤
+│  DatabaseProvider (base)                                    │
+│  ├── SqlProvider (PostgreSQL, SQLite, MySQL, DuckDB)       │
+│  └── DocumentProvider (MongoDB)                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Database Paradigm Support
+| Feature | SQL Providers | Document Providers |
+|---------|---------------|-------------------|
+| Query Language | SQL | MongoDB Query/Aggregation |
+| Schema | Fixed columns/types | Flexible documents |
+| Result Format | Rows/Columns | Documents (JSON) |
+| Primary Key | User-defined | `_id` field |
+
+#### Implementation Phases
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Core Trait System | Rust traits for provider abstraction | ⬜ |
+| Result Normalization | Unified `ProviderResult` enum | ⬜ |
+| DuckDB Provider | First new SQL provider (analytical) | ⬜ |
+| MongoDB Provider | First NoSQL provider (documents) | ⬜ |
+| Frontend Adapters | TypeScript adapter patterns | ⬜ |
+| Query Editor Enhancement | Multi-language editor support | ⬜ |
+
+#### Key Design Decisions
+- **Trait-based abstraction**: Rust `async_trait` for provider interface
+- **Operation types**: Separate Query, Command, and Mutation operations
+- **Result unification**: All providers return normalized `ProviderResult` enum
+- **Frontend adapters**: TypeScript interfaces for provider-specific UI rendering
+
 ---
 
 ## Implementation Priority
@@ -371,6 +411,9 @@ Key architecture choices made during development:
 
 4. **MySQL Priority:** Remains Phase 2 (after MVP features complete)
    *Rationale:* PostgreSQL + SQLite cover 80% use cases, polish existing features first
+
+5. **Multi-Provider Architecture:** Trait-based abstraction for database providers
+   *Rationale:* Enable support for different database paradigms (SQL vs NoSQL) without code duplication. Uses Rust traits (`DatabaseProvider`, `SqlProvider`, `DocumentProvider`) and TypeScript adapters for provider-specific UI. See [architecture plan](./plans/20251216-multi-provider-architecture/).
 
 ---
 

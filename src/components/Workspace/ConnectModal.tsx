@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getErrorMessage } from '@/lib/utils'
 import { useConnectionStore } from '@/stores/connectionStore'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Database, Loader2 } from 'lucide-react'
 
 interface ConnectModalProps {

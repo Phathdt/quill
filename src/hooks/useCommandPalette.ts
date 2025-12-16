@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react'
 import { formatSql } from '@/lib/sql-formatter'
 import { useCommandPaletteStore, type CommandAction } from '@/stores/commandPaletteStore'
 import { useConnectionStore } from '@/stores/connectionStore'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Database, FileText, Home, Wand2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 

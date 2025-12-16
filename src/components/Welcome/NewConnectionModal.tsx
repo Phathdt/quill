@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { STATUS_COLORS, TAG_OPTIONS } from '@/lib/const'
 import { cn } from '@/lib/utils'
 import { useConnectionStore } from '@/stores/connectionStore'
 import type { SslConfig } from '@/types/connection'
@@ -22,21 +23,6 @@ interface NewConnectionModalProps {
   onClose: () => void
   onCreated: () => void
 }
-
-const TAG_OPTIONS = [
-  { value: 'local', label: 'local' },
-  { value: 'development', label: 'development' },
-  { value: 'staging', label: 'staging' },
-  { value: 'production', label: 'production' },
-]
-
-const STATUS_COLORS = [
-  { value: 'default', color: 'bg-[#3c3c3c]' },
-  { value: 'blue', color: 'bg-sky-500' },
-  { value: 'yellow', color: 'bg-amber-400' },
-  { value: 'green', color: 'bg-emerald-500' },
-  { value: 'red', color: 'bg-rose-500' },
-]
 
 // PostgreSQL specific schema
 const postgresSchema = z.object({

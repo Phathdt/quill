@@ -1,9 +1,8 @@
+import { MAX_QUERY_HISTORY_ENTRIES } from '@/lib/const'
 import { readWorkspaceHistory, writeWorkspaceHistory } from '@/lib/storage'
 import type { QueryHistoryEntry } from '@/types/query-history'
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
-
-const MAX_ENTRIES = 100
 
 interface QueryHistoryState {
   // History entries keyed by workspaceId
@@ -90,8 +89,8 @@ export const useQueryHistoryStore = create<QueryHistoryStore>()((set, get) => ({
       const newHistory = [newEntry, ...currentHistory]
 
       // FIFO eviction if exceeds max entries
-      if (newHistory.length > MAX_ENTRIES) {
-        newHistory.splice(MAX_ENTRIES)
+      if (newHistory.length > MAX_QUERY_HISTORY_ENTRIES) {
+        newHistory.splice(MAX_QUERY_HISTORY_ENTRIES)
       }
 
       const updated = {

@@ -1,5 +1,5 @@
 import { formatSql } from '@/lib/sql-formatter'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { useHotkeys } from 'react-hotkeys-hook'
 
 export function useGlobalShortcuts() {

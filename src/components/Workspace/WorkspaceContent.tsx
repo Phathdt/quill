@@ -2,7 +2,7 @@ import { DataGrid } from '@/components/DataGrid/DataGrid'
 import { GeneratedSqlBar } from '@/components/DataGrid/GeneratedSqlBar'
 import { RecordDetailSidebar } from '@/components/DataGrid/RecordDetailSidebar'
 import { QueryEditor } from '@/components/QueryEditor/QueryEditor'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 
 import { EmptyState } from './EmptyState'
 import { InnerTabBar } from './InnerTabBar'

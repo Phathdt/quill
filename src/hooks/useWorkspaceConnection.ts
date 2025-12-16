@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/tauri'
 
 import { disconnectWorkspace } from '@/lib/tauri'
+import { toast } from '@/lib/toast'
 import { getErrorMessage } from '@/lib/utils'
 import { useConnectionStore } from '@/stores/connectionStore'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Connection } from '@/types/connection'
 
 /**
@@ -30,7 +31,9 @@ export function useWorkspaceConnection() {
       // Create new workspace
       const workspaceId = createWorkspace(connection)
       if (!workspaceId) {
-        setConnectError(`Maximum 5 workspaces allowed (currently ${workspaceCount} open). Close some workspaces first.`)
+        const errorMsg = `Maximum 5 workspaces allowed (currently ${workspaceCount} open). Close some workspaces first.`
+        setConnectError(errorMsg)
+        toast.error(errorMsg)
         return false
       }
 
@@ -49,7 +52,9 @@ export function useWorkspaceConnection() {
       } catch (err) {
         // Clean up the workspace if connection failed
         closeWorkspace(workspaceId)
-        setConnectError(getErrorMessage(err))
+        const errorMsg = getErrorMessage(err)
+        setConnectError(errorMsg)
+        toast.error(`Connection failed: ${errorMsg}`)
         return false
       }
     },
@@ -105,6 +110,7 @@ export function useConnectionFromRoute(
       // Schedule error update and navigation for next tick to avoid setState in effect
       Promise.resolve().then(() => {
         setError('Connection not found')
+        toast.error('Connection not found')
         onNavigate('/workspaces', true)
       })
       return
@@ -129,7 +135,9 @@ export function useConnectionFromRoute(
     const doConnect = async () => {
       const workspaceId = createWorkspace(connection)
       if (!workspaceId) {
-        setError(`Maximum 5 workspaces allowed (currently ${workspaceCount} open)`)
+        const errorMsg = `Maximum 5 workspaces allowed (currently ${workspaceCount} open)`
+        setError(errorMsg)
+        toast.error(errorMsg)
         onNavigate('/workspaces', true)
         return
       }
@@ -147,7 +155,9 @@ export function useConnectionFromRoute(
         setError(null)
       } catch (err) {
         closeWorkspace(workspaceId)
-        setError(getErrorMessage(err))
+        const errorMsg = getErrorMessage(err)
+        setError(errorMsg)
+        toast.error(`Connection failed: ${errorMsg}`)
       }
       onNavigate('/workspaces', true)
     }

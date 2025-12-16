@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { useWorkspaceManagerStore } from '@/stores/workspaceManagerStore'
+import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Command, Database, FileText } from 'lucide-react'
 
 interface EmptyStateProps {
