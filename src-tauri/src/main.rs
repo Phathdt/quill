@@ -13,6 +13,7 @@ fn main() {
         .manage(MultiDbState::new())
         .invoke_handler(tauri::generate_handler![
             commands::query::execute_query,
+            commands::query::execute_query_with_count,
             commands::query::connect_workspace,
             commands::query::disconnect_workspace,
             commands::query::get_workspace_connection_status,

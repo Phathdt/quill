@@ -48,6 +48,22 @@ export interface SidebarState {
   selectedRowIndex: number | null
 }
 
+// Pagination state for table tabs
+export interface PaginationState {
+  page: number // 1-indexed
+  pageSize: number // 25, 50, 100, 500
+  totalCount: number
+}
+
+export const DEFAULT_PAGE_SIZE = 100
+export const PAGE_SIZE_OPTIONS = [25, 50, 100, 500] as const
+
+// Sort state for table tabs (server-side sorting)
+export interface SortState {
+  column: string
+  direction: 'asc' | 'desc'
+}
+
 // Tab within workspace - can be query or table browser
 export interface Tab {
   id: string
@@ -61,6 +77,8 @@ export interface Tab {
   loading: boolean
   isDirty: boolean
   filters?: TableFilter[] // Only used for type='table'
+  pagination?: PaginationState // Only used for type='table'
+  sort?: SortState // Only used for type='table' - server-side sorting
   sidebarState?: SidebarState
   editingState?: EditingState // Only used for type='table'
 }

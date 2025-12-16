@@ -4,10 +4,13 @@ import { FilterPopup } from '@/components/Filter'
 import { ImportDialog } from '@/components/Import/ImportDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useExecuteQuery } from '@/hooks/useExecuteQuery'
 import { exportToCsv, exportToJson } from '@/lib/export'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Column } from '@/types/database'
 import { Download, History, PanelRight, Upload } from 'lucide-react'
+
+import { PaginationControls } from './pagination-controls'
 
 interface GridToolbarProps {
   rowCount: number
@@ -21,12 +24,15 @@ interface GridToolbarProps {
 export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFilters, onRefresh }: GridToolbarProps) {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
+  const setTabPagination = useWorkspaceManagerStore((s) => s.setTabPagination)
   const setSidebarOpen = useWorkspaceManagerStore((s) => s.setSidebarOpen)
   const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const { execute, loading } = useExecuteQuery()
 
   const isTableMode = activeTab?.type === 'table'
   const sidebarState = activeTab?.sidebarState
+  const pagination = activeTab?.pagination
   const hasSelectedRow = rows.length > 0
 
   const handleExportCsv = () => {
@@ -35,6 +41,23 @@ export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFil
 
   const handleExportJson = () => {
     exportToJson(columns, rows, 'query-result.json')
+  }
+
+  const handlePageChange = async (newPage: number) => {
+    if (!activeWorkspace || !activeTab || loading) return
+    setTabPagination(activeWorkspace.id, activeTab.id, { page: newPage })
+    // Small delay to ensure state is updated before executing
+    setTimeout(() => execute(), 0)
+  }
+
+  const handlePageSizeChange = async (newPageSize: number) => {
+    if (!activeWorkspace || !activeTab || loading) return
+    // Reset to page 1 when changing page size
+    setTabPagination(activeWorkspace.id, activeTab.id, {
+      page: 1,
+      pageSize: newPageSize,
+    })
+    setTimeout(() => execute(), 0)
   }
 
   const handleToggleSidebar = (mode: 'record' | 'history') => {
@@ -54,9 +77,21 @@ export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFil
   return (
     <div className='flex items-center justify-between border-b border-border bg-card px-3 py-1.5 text-xs'>
       <div className='flex items-center gap-4'>
-        <span className='text-foreground'>
-          <span className='text-muted-foreground'>Rows:</span> {rowCount.toLocaleString()}
-        </span>
+        {/* Pagination controls for table mode */}
+        {isTableMode && pagination ? (
+          <PaginationControls
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalCount={pagination.totalCount}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            disabled={loading}
+          />
+        ) : (
+          <span className='text-foreground'>
+            <span className='text-muted-foreground'>Rows:</span> {rowCount.toLocaleString()}
+          </span>
+        )}
 
         {/* Filter button - only in table mode */}
         {isTableMode && columns.length > 0 && <FilterPopup columns={columns} onApply={onApplyFilters || (() => {})} />}

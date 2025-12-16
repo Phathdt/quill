@@ -1,4 +1,4 @@
-import type { DbType, FilterOperator, TableFilter } from '@/types/workspace'
+import type { DbType, FilterOperator, SortState, TableFilter } from '@/types/workspace'
 
 /**
  * Escape a value for safe SQL string interpolation
@@ -183,18 +183,52 @@ export function generateWhereClause(filters: TableFilter[], dbType: DbType): str
 }
 
 /**
+ * Generate ORDER BY clause from sort state
+ */
+export function generateOrderByClause(sort: SortState | undefined): string {
+  if (!sort || !sort.column) {
+    return ''
+  }
+  const col = quoteColumn(sort.column)
+  const direction = sort.direction === 'desc' ? 'DESC' : 'ASC'
+  return `ORDER BY ${col} ${direction}`
+}
+
+/**
  * Generate complete SQL query for a table with filters
  */
 export function generateTableQuery(
   tableName: string,
   filters: TableFilter[],
   dbType: DbType,
-  limit: number = 100
+  limit: number = 100,
+  offset: number = 0,
+  sort?: SortState
 ): string {
   const safeTableName = `"${tableName.replace(/"/g, '""')}"`
   const whereClause = generateWhereClause(filters, dbType)
+  const orderByClause = generateOrderByClause(sort)
 
-  const parts = ['SELECT *', `FROM ${safeTableName}`, whereClause, `LIMIT ${limit}`].filter(Boolean)
+  const parts = [
+    'SELECT *',
+    `FROM ${safeTableName}`,
+    whereClause,
+    orderByClause,
+    `LIMIT ${limit}`,
+    offset > 0 ? `OFFSET ${offset}` : '',
+  ].filter(Boolean)
+
+  return parts.join(' ')
+}
+
+/**
+ * Generate COUNT(*) query for pagination total count
+ */
+export function generateCountQuery(tableName: string, filters: TableFilter[], dbType: DbType): string {
+  const safeTableName = `"${tableName.replace(/"/g, '""')}"`
+  const whereClause = generateWhereClause(filters, dbType)
+
+  const parts = ['SELECT COUNT(*)', `FROM ${safeTableName}`, whereClause].filter(Boolean)
 
   return parts.join(' ')
 }

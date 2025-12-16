@@ -50,6 +50,7 @@ async fn execute_sqlite(pool: &sqlx::SqlitePool, sql: &str) -> Result<QueryResul
             rows: result_rows,
             rows_affected: 0,
             execution_time_ms: start.elapsed().as_millis() as u64,
+            total_count: None,
         })
     } else {
         let result = query.execute(pool).await?;
@@ -58,6 +59,7 @@ async fn execute_sqlite(pool: &sqlx::SqlitePool, sql: &str) -> Result<QueryResul
             rows: vec![],
             rows_affected: result.rows_affected(),
             execution_time_ms: start.elapsed().as_millis() as u64,
+            total_count: None,
         })
     }
 }
@@ -102,6 +104,7 @@ async fn execute_postgres(pool: &sqlx::PgPool, sql: &str) -> Result<QueryResult,
             rows: result_rows,
             rows_affected: 0,
             execution_time_ms: start.elapsed().as_millis() as u64,
+            total_count: None,
         })
     } else {
         let result = query.execute(pool).await?;
@@ -110,6 +113,7 @@ async fn execute_postgres(pool: &sqlx::PgPool, sql: &str) -> Result<QueryResult,
             rows: vec![],
             rows_affected: result.rows_affected(),
             execution_time_ms: start.elapsed().as_millis() as u64,
+            total_count: None,
         })
     }
 }
@@ -194,4 +198,33 @@ pub fn extract_postgres_value(row: &sqlx::postgres::PgRow, i: usize) -> serde_js
         }
         Err(_) => serde_json::Value::Null,
     }
+}
+
+async fn execute_count_sqlite(pool: &sqlx::SqlitePool, sql: &str) -> Result<i64, AppError> {
+    let row = sqlx::query(sql).fetch_one(pool).await?;
+    Ok(row.try_get::<i64, _>(0).unwrap_or(0))
+}
+
+async fn execute_count_postgres(pool: &sqlx::PgPool, sql: &str) -> Result<i64, AppError> {
+    let row = sqlx::query(sql).fetch_one(pool).await?;
+    Ok(row.try_get::<i64, _>(0).unwrap_or(0))
+}
+
+pub async fn execute_sql_with_count(
+    pool: &DbPool,
+    sql: &str,
+    count_sql: Option<&str>,
+) -> Result<QueryResult, AppError> {
+    let total_count = if let Some(count_query) = count_sql {
+        match pool {
+            DbPool::Sqlite(p) => Some(execute_count_sqlite(p, count_query).await?),
+            DbPool::Postgres(p) => Some(execute_count_postgres(p, count_query).await?),
+        }
+    } else {
+        None
+    };
+
+    let mut result = execute_sql(pool, sql).await?;
+    result.total_count = total_count;
+    Ok(result)
 }

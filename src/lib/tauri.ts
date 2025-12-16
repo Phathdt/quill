@@ -8,6 +8,14 @@ export async function executeQuery(workspaceId: string, sql: string): Promise<Qu
   return invoke<QueryResult>('execute_query', { workspaceId, sql })
 }
 
+export async function executeQueryWithCount(workspaceId: string, sql: string, countSql?: string): Promise<QueryResult> {
+  return invoke<QueryResult>('execute_query_with_count', {
+    workspaceId,
+    sql,
+    countSql,
+  })
+}
+
 export async function connectWorkspace(
   workspaceId: string,
   connectionString: string,

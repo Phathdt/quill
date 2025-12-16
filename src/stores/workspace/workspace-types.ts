@@ -3,12 +3,12 @@ import { MAX_WORKSPACES } from '@/lib/const'
 import type { Connection } from '@/types/connection'
 import type { QueryResult } from '@/types/database'
 import type { CellEdit, PendingNewRow } from '@/types/editing'
-import type { Tab, TableFilter, Workspace, WorkspaceManagerState } from '@/types/workspace'
+import type { PaginationState, SortState, Tab, TableFilter, Workspace, WorkspaceManagerState } from '@/types/workspace'
 import { nanoid } from 'nanoid'
 
 // Re-export types for convenience
 export type { CellEdit, PendingNewRow } from '@/types/editing'
-export type { Tab, TableFilter, Workspace, WorkspaceManagerState } from '@/types/workspace'
+export type { PaginationState, Tab, TableFilter, Workspace, WorkspaceManagerState } from '@/types/workspace'
 export type { Connection }
 export type { QueryResult }
 
@@ -53,6 +53,9 @@ export interface WorkspaceManagerStore extends WorkspaceManagerState {
   closeTabsToRight: (workspaceId: string, tabId: string) => void
   closeAllTabs: (workspaceId: string) => void
   renameTab: (workspaceId: string, tabId: string, name: string) => void
+  setTabPagination: (workspaceId: string, tabId: string, pagination: Partial<PaginationState>) => void
+  resetTabPagination: (workspaceId: string, tabId: string) => void
+  setTabSort: (workspaceId: string, tabId: string, sort: SortState | undefined) => void
 
   // Filter operations (table mode only)
   setTabFilters: (workspaceId: string, tabId: string, filters: TableFilter[]) => void

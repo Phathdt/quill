@@ -19,6 +19,7 @@ export const createWorkspaceFiltersSlice: StateCreator<WorkspaceManagerStore, []
     set((s) => {
       const ws = s.workspaces[workspaceId]
       if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
       return {
         workspaces: {
           ...s.workspaces,
@@ -26,7 +27,11 @@ export const createWorkspaceFiltersSlice: StateCreator<WorkspaceManagerStore, []
             ...ws,
             tabs: {
               ...ws.tabs,
-              [tabId]: { ...ws.tabs[tabId], filters },
+              [tabId]: {
+                ...tab,
+                filters,
+                pagination: tab.pagination ? { ...tab.pagination, page: 1 } : undefined,
+              },
             },
           },
         },
@@ -47,7 +52,11 @@ export const createWorkspaceFiltersSlice: StateCreator<WorkspaceManagerStore, []
             ...ws,
             tabs: {
               ...ws.tabs,
-              [tabId]: { ...tab, filters },
+              [tabId]: {
+                ...tab,
+                filters,
+                pagination: tab.pagination ? { ...tab.pagination, page: 1 } : undefined,
+              },
             },
           },
         },
@@ -68,7 +77,11 @@ export const createWorkspaceFiltersSlice: StateCreator<WorkspaceManagerStore, []
             ...ws,
             tabs: {
               ...ws.tabs,
-              [tabId]: { ...tab, filters },
+              [tabId]: {
+                ...tab,
+                filters,
+                pagination: tab.pagination ? { ...tab.pagination, page: 1 } : undefined,
+              },
             },
           },
         },
@@ -89,7 +102,11 @@ export const createWorkspaceFiltersSlice: StateCreator<WorkspaceManagerStore, []
             ...ws,
             tabs: {
               ...ws.tabs,
-              [tabId]: { ...tab, filters },
+              [tabId]: {
+                ...tab,
+                filters,
+                pagination: tab.pagination ? { ...tab.pagination, page: 1 } : undefined,
+              },
             },
           },
         },
@@ -101,6 +118,7 @@ export const createWorkspaceFiltersSlice: StateCreator<WorkspaceManagerStore, []
     set((s) => {
       const ws = s.workspaces[workspaceId]
       if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
       return {
         workspaces: {
           ...s.workspaces,
@@ -108,7 +126,11 @@ export const createWorkspaceFiltersSlice: StateCreator<WorkspaceManagerStore, []
             ...ws,
             tabs: {
               ...ws.tabs,
-              [tabId]: { ...ws.tabs[tabId], filters: [] },
+              [tabId]: {
+                ...tab,
+                filters: [],
+                pagination: tab.pagination ? { ...tab.pagination, page: 1 } : undefined,
+              },
             },
           },
         },

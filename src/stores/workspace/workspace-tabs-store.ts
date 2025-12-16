@@ -1,6 +1,6 @@
 // Tab operations: create, close, switch, update SQL/result/error/loading
 import type { QueryResult } from '@/types/database'
-import type { Tab } from '@/types/workspace'
+import type { PaginationState, SortState, Tab } from '@/types/workspace'
 import { nanoid } from 'nanoid'
 import type { StateCreator } from 'zustand'
 
@@ -20,6 +20,9 @@ export interface WorkspaceTabsSlice {
   closeAllTabs: (workspaceId: string) => void
   renameTab: (workspaceId: string, tabId: string, name: string) => void
   getActiveTab: () => Tab | null
+  setTabPagination: (workspaceId: string, tabId: string, pagination: Partial<PaginationState>) => void
+  resetTabPagination: (workspaceId: string, tabId: string) => void
+  setTabSort: (workspaceId: string, tabId: string, sort: SortState | undefined) => void
 }
 
 export const createWorkspaceTabsSlice: StateCreator<WorkspaceManagerStore, [], [], WorkspaceTabsSlice> = (
@@ -41,6 +44,7 @@ export const createWorkspaceTabsSlice: StateCreator<WorkspaceManagerStore, [], [
       loading: false,
       isDirty: false,
       filters: type === 'table' ? [] : undefined,
+      pagination: type === 'table' ? { page: 1, pageSize: 100, totalCount: 0 } : undefined,
     }
 
     set((s) => {
@@ -205,6 +209,9 @@ export const createWorkspaceTabsSlice: StateCreator<WorkspaceManagerStore, [], [
     set((s) => {
       const ws = s.workspaces[workspaceId]
       if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      // Only mark dirty for query tabs, not table tabs (pagination updates SQL display)
+      const isDirty = tab.type === 'query' ? true : tab.isDirty
       return {
         workspaces: {
           ...s.workspaces,
@@ -212,7 +219,7 @@ export const createWorkspaceTabsSlice: StateCreator<WorkspaceManagerStore, [], [
             ...ws,
             tabs: {
               ...ws.tabs,
-              [tabId]: { ...ws.tabs[tabId], sql, isDirty: true },
+              [tabId]: { ...tab, sql, isDirty },
             },
           },
         },
@@ -281,5 +288,77 @@ export const createWorkspaceTabsSlice: StateCreator<WorkspaceManagerStore, [], [
     const ws = get().getActiveWorkspace()
     if (!ws || !ws.activeTabId) return null
     return ws.tabs[ws.activeTabId] || null
+  },
+
+  setTabPagination: (workspaceId, tabId, pagination) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                pagination: {
+                  ...(tab.pagination || { page: 1, pageSize: 100, totalCount: 0 }),
+                  ...pagination,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  resetTabPagination: (workspaceId, tabId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...ws.tabs[tabId],
+                pagination: { page: 1, pageSize: 100, totalCount: 0 },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  setTabSort: (workspaceId, tabId, sort) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...ws.tabs[tabId],
+                sort,
+                // Reset to page 1 when sorting changes
+                pagination: ws.tabs[tabId].pagination ? { ...ws.tabs[tabId].pagination, page: 1 } : undefined,
+              },
+            },
+          },
+        },
+      }
+    })
   },
 })

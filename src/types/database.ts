@@ -8,6 +8,7 @@ export interface QueryResult {
   rows: (string | number | boolean | null)[][]
   rowsAffected: number
   executionTimeMs: number
+  totalCount?: number
 }
 
 export interface QueryError {

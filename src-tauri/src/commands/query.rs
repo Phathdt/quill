@@ -1,5 +1,5 @@
 use crate::db::connection::{DbPool, MultiDbState, SslConfig};
-use crate::db::executor::execute_sql;
+use crate::db::executor::{execute_sql, execute_sql_with_count};
 use crate::error::AppError;
 use crate::models::query_result::QueryResult;
 use serde::Deserialize;
@@ -45,6 +45,21 @@ pub async fn execute_query(
         .ok_or_else(|| AppError::Connection("Workspace not connected".to_string()))?;
 
     execute_sql(&conn_info.pool, &sql).await
+}
+
+#[tauri::command]
+pub async fn execute_query_with_count(
+    workspace_id: String,
+    sql: String,
+    count_sql: Option<String>,
+    state: tauri::State<'_, MultiDbState>,
+) -> Result<QueryResult, AppError> {
+    let conns = state.connections.read().await;
+    let conn_info = conns
+        .get(&workspace_id)
+        .ok_or_else(|| AppError::Connection("Workspace not connected".to_string()))?;
+
+    execute_sql_with_count(&conn_info.pool, &sql, count_sql.as_deref()).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -237,6 +252,7 @@ pub async fn insert_row(
                 rows: result_rows,
                 rows_affected: rows.len() as u64,
                 execution_time_ms: 0,
+                total_count: None,
             })
         }
         DbPool::Sqlite(pool) => {
@@ -265,6 +281,7 @@ pub async fn insert_row(
                 rows: vec![],
                 rows_affected: result.rows_affected(),
                 execution_time_ms: 0,
+                total_count: None,
             })
         }
     }

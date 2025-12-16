@@ -10,12 +10,14 @@ import {
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
+import { useExecuteQuery } from '@/hooks/useExecuteQuery'
 import { useInlineEditing } from '@/hooks/useInlineEditing'
 import { useTableFilter } from '@/hooks/useTableFilter'
 import { deleteRows, getPrimaryKey, insertRow } from '@/lib/tauri'
 import { toast } from '@/lib/toast'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Column } from '@/types/database'
+import type { SortState } from '@/types/workspace'
 import { AlertCircle, FileText, Loader2 } from 'lucide-react'
 
 import { CellValue } from './cell-value'
@@ -42,13 +44,21 @@ export function DataGrid() {
 
   const parentRef = useRef<HTMLDivElement>(null)
   const { applyFilters } = useTableFilter()
+  const { execute } = useExecuteQuery()
 
   const result = activeTab?.result ?? null
   const error = activeTab?.error ?? null
   const loading = activeTab?.loading ?? false
+  const isTableMode = activeTab?.type === 'table'
 
-  // Sorting state
-  const [sorting, setSorting] = useState<SortingState>([])
+  // Convert store sort state to TanStack Table format for display
+  // Store uses column name, TanStack uses column index as id
+  const sorting = useMemo<SortingState>(() => {
+    if (!activeTab?.sort || !result?.columns) return []
+    const colIndex = result.columns.findIndex((c) => c.name === activeTab.sort!.column)
+    if (colIndex === -1) return []
+    return [{ id: String(colIndex), desc: activeTab.sort.direction === 'desc' }]
+  }, [activeTab?.sort, result?.columns])
 
   // Selection hook
   const {
@@ -74,15 +84,49 @@ export function DataGrid() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Inline editing hook
-  const {
-    isTableMode,
-    editingState,
-    startEditing,
-    commitCellEdit,
-    cancelEditing,
-    savePendingChanges,
-    discardPendingChanges,
-  } = useInlineEditing()
+  const { editingState, startEditing, commitCellEdit, cancelEditing, savePendingChanges, discardPendingChanges } =
+    useInlineEditing()
+
+  // Handle sorting changes - for table tabs, use server-side sorting
+  const handleSortingChange = useCallback(
+    (updater: SortingState | ((old: SortingState) => SortingState)) => {
+      // Get fresh state to avoid stale closure
+      const store = useWorkspaceManagerStore.getState()
+      const workspace = store.getActiveWorkspace()
+      const tab = store.getActiveTab()
+
+      if (!workspace || !tab) return
+
+      // Compute current sorting state from store
+      const currentSorting: SortingState = (() => {
+        if (!tab.sort || !tab.result?.columns) return []
+        const colIndex = tab.result.columns.findIndex((c) => c.name === tab.sort!.column)
+        if (colIndex === -1) return []
+        return [{ id: String(colIndex), desc: tab.sort.direction === 'desc' }]
+      })()
+
+      const newSorting = typeof updater === 'function' ? updater(currentSorting) : updater
+
+      // For table tabs, update store and re-execute query
+      if (tab.type === 'table') {
+        let newSort: SortState | undefined
+        if (newSorting.length > 0) {
+          // Find the column name from the column index
+          const sortCol = newSorting[0]
+          const colIndex = parseInt(sortCol.id, 10)
+          const colName = tab.result?.columns?.[colIndex]?.name
+          if (colName) {
+            newSort = { column: colName, direction: sortCol.desc ? 'desc' : 'asc' }
+          }
+        }
+
+        store.setTabSort(workspace.id, tab.id, newSort)
+        // Execute after state update
+        setTimeout(() => execute(), 0)
+      }
+    },
+    [execute]
+  )
 
   // Get pending state from editing state
   const pendingNewRows = useMemo(() => editingState?.pendingNewRows ?? [], [editingState?.pendingNewRows])
@@ -149,16 +193,20 @@ export function DataGrid() {
   }, [result?.columns, isTableMode, getCellPendingValue])
 
   // Table instance
+  // For table tabs: use manual sorting (server-side) - data already sorted from DB
+  // For query tabs: use client-side sorting
   const table = useReactTable({
     data,
     columns,
     state: { sorting },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    // Only use client-side sorting for non-table tabs
+    getSortedRowModel: isTableMode ? undefined : getSortedRowModel(),
     columnResizeMode: 'onChange',
     enableColumnResizing: true,
     enableSorting: true,
+    manualSorting: isTableMode, // Server-side sorting for table tabs
   })
 
   const { rows } = table.getRowModel()

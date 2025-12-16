@@ -12,6 +12,8 @@ import type { WorkspaceManagerStore } from './workspace-types'
 // Re-export types for convenience
 export type { WorkspaceManagerStore } from './workspace-types'
 export { MAX_WORKSPACES, createDefaultTab } from './workspace-types'
+export type { PaginationState } from '@/types/workspace'
+export { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '@/types/workspace'
 
 // Combined store using slice pattern
 export const useWorkspaceManagerStore = create<WorkspaceManagerStore>()((...args) => ({
