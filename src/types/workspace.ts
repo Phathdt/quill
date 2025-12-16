@@ -93,12 +93,13 @@ export interface WorkspaceState {
 }
 
 // Database type enum
-export type DbType = 'postgres' | 'sqlite'
+export type DbType = 'postgres' | 'sqlite' | 'mysql'
 
 // Color mapping for DB types
 export const DB_COLORS: Record<DbType, string> = {
   postgres: '#336791', // PostgreSQL blue
   sqlite: '#003B57', // SQLite teal
+  mysql: '#00758F', // MySQL teal/blue
 }
 
 // Single workspace - extends existing Tab structure

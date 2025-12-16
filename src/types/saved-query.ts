@@ -4,7 +4,7 @@ export interface SavedQuery {
   sql: string
   description?: string
   tags: string[]
-  connectionType?: 'postgres' | 'sqlite' | 'any' // Limit to specific DB types
+  connectionType?: 'postgres' | 'sqlite' | 'mysql' | 'any' // Limit to specific DB types
   createdAt: string
   updatedAt: string
   isFavorite: boolean

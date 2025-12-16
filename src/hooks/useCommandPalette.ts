@@ -68,7 +68,7 @@ export function useCommandPalette() {
           category: 'query',
           action: withClose(() => {
             const dbType = activeWorkspace.dbType
-            const language = dbType === 'postgres' ? 'postgresql' : 'sqlite'
+            const language = dbType === 'postgres' ? 'postgresql' : dbType === 'mysql' ? 'mysql' : 'sqlite'
             const formatted = formatSql(activeTab.sql, language)
             setTabSql(activeWorkspace.id, activeTab.id, formatted)
           }),

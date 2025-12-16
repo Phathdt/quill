@@ -13,6 +13,7 @@ interface WorkspaceIconProps {
 const DB_LABELS: Record<DbType, string> = {
   postgres: 'Pg',
   sqlite: 'Sl',
+  mysql: 'My',
 }
 
 export function WorkspaceIcon({ dbType, name, isActive, isConnected, onClick }: WorkspaceIconProps) {

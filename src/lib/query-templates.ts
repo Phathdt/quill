@@ -6,6 +6,7 @@ export interface QueryTemplate {
   sql: {
     postgres?: string
     sqlite?: string
+    mysql?: string
     default: string
   }
   variables?: string[]
@@ -135,7 +136,7 @@ export function getTemplatesByCategory(category?: string) {
   return QUERY_TEMPLATES.filter((t) => t.category === category)
 }
 
-export function getTemplateSql(template: QueryTemplate, dbType: 'postgres' | 'sqlite'): string {
+export function getTemplateSql(template: QueryTemplate, dbType: 'postgres' | 'sqlite' | 'mysql'): string {
   return template.sql[dbType] ?? template.sql.default
 }
 

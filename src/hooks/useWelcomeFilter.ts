@@ -10,7 +10,7 @@ export function useWelcomeFilter() {
   const [search, setSearch] = useState('')
   const [showTypeModal, setShowTypeModal] = useState(false)
   const [showNewModal, setShowNewModal] = useState(false)
-  const [selectedDbType, setSelectedDbType] = useState<'postgres' | 'sqlite'>('postgres')
+  const [selectedDbType, setSelectedDbType] = useState<'postgres' | 'sqlite' | 'mysql'>('postgres')
 
   const connections = useConnectionStore((s) => s.connections)
   const groups = useConnectionStore((s) => s.groups)
@@ -47,7 +47,7 @@ export function useWelcomeFilter() {
   // Check if we have any content to show (connections or groups)
   const hasContent = connections.length > 0 || Object.keys(groups).length > 0
 
-  const handleSelectType = (type: 'postgres' | 'sqlite') => {
+  const handleSelectType = (type: 'postgres' | 'sqlite' | 'mysql') => {
     setSelectedDbType(type)
     setShowTypeModal(false)
     setShowNewModal(true)

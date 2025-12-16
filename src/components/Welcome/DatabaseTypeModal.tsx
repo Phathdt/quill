@@ -10,7 +10,7 @@ import type { Connection } from '@/types/connection'
 import { AlertCircle, Link, Search } from 'lucide-react'
 
 interface DatabaseTypeModalProps {
-  onSelect: (type: 'postgres' | 'sqlite') => void
+  onSelect: (type: 'postgres' | 'sqlite' | 'mysql') => void
   onClose: () => void
   onImportSuccess?: (connection: Connection) => void
 }
@@ -18,6 +18,7 @@ interface DatabaseTypeModalProps {
 const DB_TYPES = [
   { id: 'postgres', label: 'PostgreSQL', abbr: 'Pg', color: 'bg-sky-500' },
   { id: 'sqlite', label: 'SQLite', abbr: 'Sl', color: 'bg-violet-500' },
+  { id: 'mysql', label: 'MySQL', abbr: 'My', color: 'bg-orange-500' },
 ] as const
 
 // Parse PostgreSQL connection URL
@@ -64,7 +65,7 @@ function parsePostgresUrl(url: string): {
 }
 
 export function DatabaseTypeModal({ onSelect, onClose, onImportSuccess }: DatabaseTypeModalProps) {
-  const [selected, setSelected] = useState<'postgres' | 'sqlite'>('postgres')
+  const [selected, setSelected] = useState<'postgres' | 'sqlite' | 'mysql'>('postgres')
   const [search, setSearch] = useState('')
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [importUrl, setImportUrl] = useState('')
@@ -197,7 +198,7 @@ export function DatabaseTypeModal({ onSelect, onClose, onImportSuccess }: Databa
           ))}
 
           {/* Coming Soon Placeholders */}
-          {['MySQL', 'DuckDB'].map((name) => (
+          {['DuckDB'].map((name) => (
             <div key={name} className='flex flex-col items-center gap-2 p-4 opacity-40 cursor-not-allowed'>
               <div className='w-14 h-14 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-lg'>
                 ?

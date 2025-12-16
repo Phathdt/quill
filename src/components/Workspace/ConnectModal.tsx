@@ -41,10 +41,29 @@ export function ConnectModal({ open, onClose }: ConnectModalProps) {
     }
 
     try {
+      let actualConnectionString = connection.path
+      let tunnelPort: number | undefined
+
+      // Create SSH tunnel if configured
+      if (connection.sshConfig) {
+        const tunnelResult = await invoke<{ localPort: number }>('create_ssh_tunnel', {
+          config: connection.sshConfig,
+        })
+        tunnelPort = tunnelResult.localPort
+
+        // Update connection string to use local tunnel port
+        if (connection.type === 'postgres') {
+          const url = new URL(actualConnectionString)
+          url.hostname = '127.0.0.1'
+          url.port = tunnelPort.toString()
+          actualConnectionString = url.toString()
+        }
+      }
+
       await invoke('connect_workspace', {
         workspaceId,
         options: {
-          connectionString: connection.path,
+          connectionString: actualConnectionString,
           sslConfig: connection.sslConfig,
         },
       })

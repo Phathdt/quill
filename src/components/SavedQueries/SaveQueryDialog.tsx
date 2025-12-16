@@ -11,7 +11,7 @@ interface SaveQueryDialogProps {
   isOpen: boolean
   onClose: () => void
   sql: string
-  connectionType?: 'postgres' | 'sqlite'
+  connectionType?: 'postgres' | 'sqlite' | 'mysql'
 }
 
 export function SaveQueryDialog({ isOpen, onClose, sql, connectionType }: SaveQueryDialogProps) {

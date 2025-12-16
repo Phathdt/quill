@@ -1,3 +1,5 @@
+import type { SshTunnelConfig } from './ssh'
+
 export type SslMode = 'disable' | 'prefer' | 'require' | 'verify-ca' | 'verify-full'
 
 export interface SslConfig {
@@ -19,13 +21,15 @@ export interface Connection {
   id: string
   name: string
   path: string // Full connection string
-  type: 'sqlite' | 'postgres'
-  // PostgreSQL specific
+  type: 'sqlite' | 'postgres' | 'mysql'
+  // PostgreSQL/MySQL specific
   host?: string
   port?: string
   database?: string
   // SSL configuration
   sslConfig?: SslConfig
+  // SSH tunnel configuration
+  sshConfig?: SshTunnelConfig
   // Metadata
   tag?: string
   statusColor?: string

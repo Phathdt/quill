@@ -1,6 +1,6 @@
 import { format } from 'sql-formatter'
 
-export function formatSql(sql: string, language: 'postgresql' | 'sqlite' = 'postgresql'): string {
+export function formatSql(sql: string, language: 'postgresql' | 'sqlite' | 'mysql' = 'postgresql'): string {
   try {
     return format(sql, {
       language,
