@@ -131,8 +131,7 @@ export function VirtualRow({
                     clearTimeout(clickTimeoutRef.current)
                   }
                   clickTimeoutRef.current = setTimeout(() => {
-                    setSelectedRowIndex(virtualRow.index)
-                    setSelectedRows(new Set([virtualRow.index]))
+                    onRowClick(virtualRow.index, e)
                   }, 200)
                 }
               }

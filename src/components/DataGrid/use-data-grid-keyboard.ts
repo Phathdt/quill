@@ -218,7 +218,13 @@ export function useDataGridKeyboard({
       }
 
       // Mark selected rows for deletion (Cmd+X, Delete, Backspace)
-      if (isTableMode && !editingCell) {
+      // Skip if focus is inside an input/textarea (e.g. RecordDetailSidebar)
+      const focusedTag = (document.activeElement as HTMLElement)?.tagName
+      const isFocusedInInput =
+        focusedTag === 'INPUT' ||
+        focusedTag === 'TEXTAREA' ||
+        (document.activeElement as HTMLElement)?.isContentEditable
+      if (isTableMode && !editingCell && !isFocusedInInput) {
         const isDeleteKey = e.key === 'Delete' || e.key === 'Backspace' || ((e.metaKey || e.ctrlKey) && e.key === 'x')
 
         // Use selectedRows if available, otherwise fall back to selectedRowIndex
