@@ -64,7 +64,7 @@ export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFil
   const canGoNext = pagination ? pagination.page < totalPages : false
 
   return (
-    <div className='flex items-center border-b border-border bg-card px-2 h-9 text-xs gap-1'>
+    <div className='flex items-center border-t border-border bg-card px-2 h-9 text-xs gap-1'>
       {/* ── Left: view tabs + utility buttons ── */}
       <div className='flex items-center gap-0.5'>
         {isTableMode ? (

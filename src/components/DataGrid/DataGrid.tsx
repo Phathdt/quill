@@ -424,16 +424,7 @@ export function DataGrid() {
   const totalWidth = table.getTotalSize()
 
   return (
-    <div className='grid grid-rows-[auto_auto_auto_1fr] h-full overflow-hidden bg-background'>
-      <GridToolbar
-        rowCount={rows.length}
-        executionTime={result.executionTimeMs}
-        columns={result.columns}
-        rows={result.rows}
-        onApplyFilters={applyFilters}
-        onRefresh={applyFilters}
-      />
-
+    <div className='grid grid-rows-[auto_auto_1fr_auto] h-full overflow-hidden bg-background'>
       <EditingToolbar onSave={savePendingChanges} onDiscard={discardPendingChanges} />
 
       {isTableMode && (
@@ -485,6 +476,16 @@ export function DataGrid() {
           </div>
         </div>
       </div>
+
+      {/* Bottom toolbar */}
+      <GridToolbar
+        rowCount={rows.length}
+        executionTime={result.executionTimeMs}
+        columns={result.columns}
+        rows={result.rows}
+        onApplyFilters={applyFilters}
+        onRefresh={applyFilters}
+      />
 
       {/* Context Menu */}
       {contextMenu && result?.columns && (
