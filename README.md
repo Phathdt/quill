@@ -16,17 +16,22 @@ A fast, lightweight database GUI built with Tauri + React + TypeScript.
 
 ## Current Features ✅
 
-- **Databases:** PostgreSQL, SQLite
+- **Databases:** PostgreSQL, SQLite, MySQL
 - **Multi-Workspace:** Up to 5 simultaneous database connections
   - VS Code-style activity bar (left sidebar)
   - Right-click context menu: Close This / Close Others
-  - Color-coded by database type (PostgreSQL=blue, SQLite=green)
+  - Color-coded by database type (PostgreSQL=blue, SQLite=green, MySQL=orange)
   - Instant workspace switching (<100ms)
 - **Query Editor:** Monaco-based with syntax highlighting, Cmd+Enter execution
 - **Data Grid:** Virtual scrolling (handles 10k+ rows), server-side pagination & sorting, type-aware formatting, JSONB support
 - **Inline Editing:** Edit cells, insert/delete rows with pending changeset (preview SQL before apply)
 - **Multi-tab:** Multiple query tabs per workspace
-- **Connections:** Save, test, and manage database connections
+- **Connections:** Save, test, and manage database connections with SSL/TLS support
+- **SSH Tunneling:** Connect to remote databases via SSH tunnel
+- **Command Palette:** Universal Cmd+K palette with fuzzy search
+- **Keyboard Shortcuts:** Full shortcut system with F1 overlay
+- **Saved Queries:** Library to save, name, and reuse queries
+- **Import:** CSV/JSON data import with preview
 - **Dark Theme:** Modern cyberpunk-inspired UI
 
 ## Tech Stack
@@ -123,7 +128,7 @@ A fast, lightweight database GUI built with Tauri + React + TypeScript.
 - [x] SSL connections, import CSV/JSON
 - [x] Saved queries library, connection groups, index display
 
-### 🚗 Phase 2.5: UI/UX Polish (Current)
+### ✅ Phase 2.5: UI/UX Polish (Complete)
 
 Modern UX to compete with TablePlus.
 
@@ -141,7 +146,7 @@ Modern UX to compete with TablePlus.
 | Dashboard Mode                | P2       | ⬜     | Overview of all workspaces with metrics          |
 | Import/Export Connections     | P2       | ⬜     | Migration from TablePlus/DBeaver                 |
 
-### 🔌 Phase 3: Database Expansion & Architecture (Next Priority)
+### 🔌 Phase 3: Database Expansion & Architecture (In Progress)
 
 Critical gaps vs competitors — requires provider architecture for scalability.
 
@@ -151,9 +156,9 @@ Critical gaps vs competitors — requires provider architecture for scalability.
 
 | Phase                | Description                          | Status |
 | -------------------- | ------------------------------------ | ------ |
-| Core Trait System    | Rust traits for provider abstraction | ⬜     |
-| Result Normalization | Unified `ProviderResult` enum        | ⬜     |
-| Frontend Adapters    | TypeScript adapter patterns          | ⬜     |
+| Core Trait System    | Rust traits for provider abstraction | ✅     |
+| Result Normalization | Unified `ProviderResult` enum        | ✅     |
+| Frontend Adapters    | TypeScript adapter patterns          | ✅     |
 
 ```
 DatabaseProvider (base)
@@ -165,8 +170,8 @@ DatabaseProvider (base)
 
 | Feature            | Priority | Status | Notes                     |
 | ------------------ | -------- | ------ | ------------------------- |
-| MySQL support      | P0       | ⬜     | All competitors have this |
-| SSH tunneling      | P0       | ⬜     | Essential for production  |
+| MySQL support      | P0       | ✅     | Implemented with SSH      |
+| SSH tunneling      | P0       | ✅     | async-ssh2-lite           |
 | DuckDB support     | P1       | ⬜     | Analytics/OLAP use case   |
 | SQL Server support | P2       | ⬜     | Enterprise demand         |
 | Turso/LibSQL       | P2       | ⬜     | Edge database trend       |
@@ -293,9 +298,9 @@ See full analysis: [`plans/reports/brainstorm-20251215-feature-gap-analysis.md`]
 | Inline editing      | ✅          | ✅        | ✅       | ✅      | ✅        |
 | Schema autocomplete | ✅          | ✅        | ✅       | ✅      | ✅        |
 | Export data         | ✅          | ✅        | ✅       | ✅      | ✅        |
-| SSH tunneling       | ⬜          | ✅        | ✅       | ✅      | ✅        |
+| SSH tunneling       | ✅          | ✅        | ✅       | ✅      | ✅        |
 | AI assistance       | ⬜ (P0)     | ❌        | ✅       | ✅      | ✅        |
-| MySQL               | ⬜          | ✅        | ✅       | ✅      | ✅        |
+| MySQL               | ✅          | ✅        | ✅       | ✅      | ✅        |
 | Team collaboration  | ⬜          | ❌        | ✅       | ❌      | ✅        |
 | Native performance  | ✅          | ✅        | ❌       | ❌      | ❌        |
 | Free tier           | ✅ Generous | ❌        | ❌       | ✅      | ✅        |
@@ -357,17 +362,27 @@ yarn tauri build
 ```
 src/                    # React frontend
 ├── components/         # UI components
-├── pages/              # Route pages
-├── stores/             # Zustand state
-├── hooks/              # Custom hooks
-├── types/              # TypeScript types
-└── lib/                # Utilities
+│   ├── DataGrid/       # Virtual table + inline editing
+│   ├── QueryEditor/    # Monaco editor
+│   ├── Welcome/        # Connection management
+│   ├── Workspace/      # Active session views
+│   ├── ActivityBar/    # Workspace switcher
+│   ├── CommandPalette/ # Cmd+K universal search
+│   └── ui/             # Radix UI primitives (shadcn)
+├── stores/             # Zustand state slices
+├── hooks/              # Custom React hooks
+├── lib/
+│   ├── adapters/       # TypeScript provider adapters
+│   └── ...             # Utilities (sql-formatter, export, etc.)
+└── types/              # TypeScript types
 
 src-tauri/              # Rust backend
 ├── src/
-│   ├── commands/       # Tauri commands
-│   ├── db/             # Database operations
-│   ├── models/         # Data structures
+│   ├── commands/       # Tauri IPC commands
+│   ├── providers/      # Database providers (postgres, sqlite, mysql)
+│   ├── tunnel/         # SSH tunnel manager
+│   ├── db/             # Connection pool + executor
+│   ├── models/         # Shared data structures
 │   └── main.rs         # Entry point
 └── Cargo.toml
 ```

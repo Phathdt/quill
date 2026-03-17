@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 
 import { ActivityBar } from '@/components/ActivityBar'
+import { useUiStore } from '@/stores/uiStore'
 
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
@@ -23,6 +24,8 @@ export function Shell({
   onHomeClick = () => {},
   onCloseWorkspace = () => {},
 }: ShellProps) {
+  const leftPanelOpen = useUiStore((s) => s.leftPanelOpen)
+
   return (
     <div className='flex h-screen flex-col overflow-hidden bg-background'>
       <Header onDisconnect={onDisconnect} />
@@ -30,7 +33,7 @@ export function Shell({
         {showActivityBar && (
           <ActivityBar onAddWorkspace={onAddWorkspace} onHomeClick={onHomeClick} onCloseWorkspace={onCloseWorkspace} />
         )}
-        <Sidebar />
+        {leftPanelOpen && <Sidebar />}
         <main className='flex flex-1 flex-col overflow-hidden'>{children}</main>
       </div>
       <StatusBar />

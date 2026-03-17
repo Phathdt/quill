@@ -4,6 +4,8 @@ import { executeQuery } from '@/lib/tauri'
 import { getErrorMessage, sanitizeSqlIdentifier } from '@/lib/utils'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 
+type ExecuteFn = () => Promise<unknown>
+
 interface TableInfo {
   name: string
   type: 'table' | 'view'
@@ -18,9 +20,6 @@ export function useTableList(workspaceId: string | undefined, isConnected: boole
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const setTabLoading = useWorkspaceManagerStore((s) => s.setTabLoading)
-  const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
-  const setTabError = useWorkspaceManagerStore((s) => s.setTabError)
   const createTab = useWorkspaceManagerStore((s) => s.createTab)
   const findTableTab = useWorkspaceManagerStore((s) => s.findTableTab)
   const switchTab = useWorkspaceManagerStore((s) => s.switchTab)
@@ -88,36 +87,29 @@ export function useTableList(workspaceId: string | undefined, isConnected: boole
   }, [isConnected, workspaceId, loadTables])
 
   /**
-   * Handle table click - focus existing tab or create new one
+   * Handle table click - focus existing tab or create new one.
+   * Accepts execute() from useExecuteQuery to run paginated query with totalCount.
    */
   const openTable = useCallback(
-    async (tableName: string) => {
+    async (tableName: string, execute: ExecuteFn) => {
       if (!isConnected || !workspaceId) return
 
       const safeTableName = sanitizeSqlIdentifier(tableName)
 
-      // Check if tab for this table already exists
+      // Switch to existing tab if already open
       const existingTabId = findTableTab(workspaceId, safeTableName)
       if (existingTabId) {
         switchTab(workspaceId, existingTabId)
         return
       }
 
-      // Create new tab if not exists
-      const tabId = createTab(workspaceId, 'table', tableName, safeTableName)
+      // Create new tab — sets it as active, initializes pagination state
+      createTab(workspaceId, 'table', tableName, safeTableName)
 
-      setTabLoading(workspaceId, tabId, true)
-      try {
-        const sql = `SELECT * FROM "${safeTableName}" LIMIT 100`
-        const result = await executeQuery(workspaceId, sql)
-        setTabResult(workspaceId, tabId, result)
-      } catch (error) {
-        setTabError(workspaceId, tabId, getErrorMessage(error))
-      } finally {
-        setTabLoading(workspaceId, tabId, false)
-      }
+      // Delegate to execute() which generates paginated SQL + COUNT query
+      await execute()
     },
-    [isConnected, workspaceId, findTableTab, switchTab, createTab, setTabLoading, setTabResult, setTabError]
+    [isConnected, workspaceId, findTableTab, switchTab, createTab]
   )
 
   return {

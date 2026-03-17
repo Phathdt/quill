@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useHistoryList, useTableList } from '@/hooks'
+import { useExecuteQuery } from '@/hooks/useExecuteQuery'
 import { cn } from '@/lib/utils'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import {
@@ -37,6 +38,7 @@ export function Sidebar() {
 
   // Tables logic extracted to hook
   const { tables, loading, loadTables, openTable } = useTableList(workspaceId, isConnected)
+  const { execute } = useExecuteQuery()
 
   // History logic extracted to hook
   const { history, loadHistoryEntry, removeEntry, formatRelativeTime } = useHistoryList(workspaceId, searchQuery)
@@ -143,7 +145,7 @@ export function Sidebar() {
                         key={table.name}
                         variant='ghost'
                         className='w-full justify-start gap-2 h-auto py-1 px-2 text-sm font-normal'
-                        onClick={() => openTable(table.name)}
+                        onClick={() => openTable(table.name, execute)}
                       >
                         <Table className='h-4 w-4 text-muted-foreground' />
                         <span className='truncate'>{table.name}</span>

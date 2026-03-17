@@ -23,7 +23,7 @@ export function DataGridHeader({ headerGroups, table }: DataGridHeaderProps) {
             return (
               <div
                 key={header.id}
-                className='relative px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide border-r border-border last:border-r-0 flex-shrink-0 select-none bg-muted/30'
+                className='relative px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide border-r border-border first:border-l flex-shrink-0 select-none bg-muted/30'
                 style={{ width: header.getSize(), minWidth: header.getSize() }}
               >
                 <div

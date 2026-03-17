@@ -8,7 +8,7 @@ import { useExecuteQuery } from '@/hooks/useExecuteQuery'
 import { exportToCsv, exportToJson } from '@/lib/export'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Column } from '@/types/database'
-import { Download, History, PanelRight, Upload } from 'lucide-react'
+import { Download, History, Upload } from 'lucide-react'
 
 import { PaginationControls } from './pagination-controls'
 
@@ -26,14 +26,12 @@ export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFil
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const setTabPagination = useWorkspaceManagerStore((s) => s.setTabPagination)
   const setSidebarOpen = useWorkspaceManagerStore((s) => s.setSidebarOpen)
-  const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
   const [showImportDialog, setShowImportDialog] = useState(false)
   const { execute, loading } = useExecuteQuery()
 
   const isTableMode = activeTab?.type === 'table'
   const sidebarState = activeTab?.sidebarState
   const pagination = activeTab?.pagination
-  const hasSelectedRow = rows.length > 0
 
   const handleExportCsv = () => {
     exportToCsv(columns, rows, 'query-result.csv')
@@ -60,16 +58,12 @@ export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFil
     setTimeout(() => execute(), 0)
   }
 
-  const handleToggleSidebar = (mode: 'record' | 'history') => {
+  const handleToggleSidebar = (mode: 'history') => {
     if (!activeWorkspace || !activeTab) return
 
     if (sidebarState?.isOpen && sidebarState.mode === mode) {
       setSidebarOpen(activeWorkspace.id, activeTab.id, false)
     } else {
-      // If opening record mode and no row selected, select first row
-      if (mode === 'record' && sidebarState?.selectedRowIndex === null) {
-        setSidebarRowIndex(activeWorkspace.id, activeTab.id, 0)
-      }
       setSidebarOpen(activeWorkspace.id, activeTab.id, true, mode)
     }
   }
@@ -124,16 +118,6 @@ export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFil
 
         {/* Sidebar toggles */}
         <div className='flex items-center gap-1 border-l border-border pl-3'>
-          <Button
-            size='icon'
-            variant={sidebarState?.isOpen && sidebarState.mode === 'record' ? 'secondary' : 'ghost'}
-            className='h-7 w-7'
-            onClick={() => handleToggleSidebar('record')}
-            disabled={!hasSelectedRow}
-            title='Record Detail (Cmd+D)'
-          >
-            <PanelRight className='h-4 w-4' />
-          </Button>
           <Button
             size='icon'
             variant={sidebarState?.isOpen && sidebarState.mode === 'history' ? 'secondary' : 'ghost'}

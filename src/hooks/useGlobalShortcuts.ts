@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { formatSql } from '@/lib/sql-formatter'
+import { useUiStore } from '@/stores/uiStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { useHotkeys } from 'react-hotkeys-hook'
 
@@ -14,6 +15,7 @@ export function useGlobalShortcuts() {
   const setTabSql = useWorkspaceManagerStore((s) => s.setTabSql)
   const setSidebarOpen = useWorkspaceManagerStore((s) => s.setSidebarOpen)
   const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
+  const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
 
   // Cmd+T: Create new tab
   useHotkeys(
@@ -35,6 +37,16 @@ export function useGlobalShortcuts() {
       if (activeWorkspace && activeTab && activeWorkspace.tabOrder.length > 1) {
         closeTab(activeWorkspace.id, activeTab.id)
       }
+    },
+    { enableOnFormTags: true }
+  )
+
+  // Cmd+B: Toggle left panel
+  useHotkeys(
+    'meta+b',
+    (e) => {
+      e.preventDefault()
+      toggleLeftPanel()
     },
     { enableOnFormTags: true }
   )

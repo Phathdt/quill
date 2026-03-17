@@ -112,7 +112,7 @@ export function VirtualRow({
         return (
           <div
             key={cell.id}
-            className={`relative px-3 py-1.5 text-foreground font-mono text-xs truncate flex items-center border-r border-border last:border-r-0 shrink-0 ${
+            className={`relative px-3 py-1.5 text-foreground font-mono text-xs truncate flex items-center border-r border-border first:border-l shrink-0 ${
               isTableMode && meta ? 'cursor-text' : ''
             } ${isFocused ? 'ring-2 ring-primary ring-inset rounded-sm' : ''} ${hasPending ? 'bg-amber-500/20' : ''}`}
             style={{ width: cell.column.getSize(), minWidth: cell.column.getSize() }}
