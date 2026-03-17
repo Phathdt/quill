@@ -2,15 +2,15 @@ import { useState } from 'react'
 
 import { FilterPopup } from '@/components/Filter'
 import { ImportDialog } from '@/components/Import/ImportDialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
-import { exportToCsv, exportToJson } from '@/lib/export'
+import { exportToCsv } from '@/lib/export'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Column } from '@/types/database'
-import { Download, History, Upload } from 'lucide-react'
+import { PAGE_SIZE_OPTIONS } from '@/types/workspace'
+import { ChevronLeft, ChevronRight, Download, History, LayoutGrid, Table2, Upload } from 'lucide-react'
 
-import { PaginationControls } from './pagination-controls'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
 interface GridToolbarProps {
   rowCount: number
@@ -33,101 +33,163 @@ export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFil
   const sidebarState = activeTab?.sidebarState
   const pagination = activeTab?.pagination
 
-  const handleExportCsv = () => {
-    exportToCsv(columns, rows, 'query-result.csv')
-  }
-
-  const handleExportJson = () => {
-    exportToJson(columns, rows, 'query-result.json')
-  }
+  const handleExportCsv = () => exportToCsv(columns, rows, 'query-result.csv')
 
   const handlePageChange = async (newPage: number) => {
     if (!activeWorkspace || !activeTab || loading) return
     setTabPagination(activeWorkspace.id, activeTab.id, { page: newPage })
-    // Small delay to ensure state is updated before executing
     setTimeout(() => execute(), 0)
   }
 
   const handlePageSizeChange = async (newPageSize: number) => {
     if (!activeWorkspace || !activeTab || loading) return
-    // Reset to page 1 when changing page size
-    setTabPagination(activeWorkspace.id, activeTab.id, {
-      page: 1,
-      pageSize: newPageSize,
-    })
+    setTabPagination(activeWorkspace.id, activeTab.id, { page: 1, pageSize: newPageSize })
     setTimeout(() => execute(), 0)
   }
 
-  const handleToggleSidebar = (mode: 'history') => {
+  const handleToggleHistory = () => {
     if (!activeWorkspace || !activeTab) return
-
-    if (sidebarState?.isOpen && sidebarState.mode === mode) {
+    if (sidebarState?.isOpen && sidebarState.mode === 'history') {
       setSidebarOpen(activeWorkspace.id, activeTab.id, false)
     } else {
-      setSidebarOpen(activeWorkspace.id, activeTab.id, true, mode)
+      setSidebarOpen(activeWorkspace.id, activeTab.id, true, 'history')
     }
   }
 
+  // Pagination display values
+  const totalPages = pagination ? Math.max(1, Math.ceil(pagination.totalCount / pagination.pageSize)) : 1
+  const startRow = pagination && pagination.totalCount > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0
+  const endRow = pagination ? Math.min(pagination.page * pagination.pageSize, pagination.totalCount) : 0
+  const canGoPrev = pagination ? pagination.page > 1 : false
+  const canGoNext = pagination ? pagination.page < totalPages : false
+
   return (
-    <div className='flex items-center justify-between border-b border-border bg-card px-3 py-1.5 text-xs'>
-      <div className='flex items-center gap-4'>
-        {/* Pagination controls for table mode */}
-        {isTableMode && pagination ? (
-          <PaginationControls
-            page={pagination.page}
-            pageSize={pagination.pageSize}
-            totalCount={pagination.totalCount}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
-            disabled={loading}
-          />
+    <div className='flex items-center border-b border-border bg-card px-2 h-9 text-xs gap-1'>
+      {/* ── Left: view tabs + utility buttons ── */}
+      <div className='flex items-center gap-0.5'>
+        {isTableMode ? (
+          <>
+            {/* Data / Structure tabs */}
+            <Button size='sm' variant='secondary' className='h-6 px-2.5 text-xs rounded-sm gap-1.5'>
+              <LayoutGrid className='h-3 w-3' />
+              Data
+            </Button>
+            <Button size='sm' variant='ghost' className='h-6 px-2.5 text-xs rounded-sm gap-1.5 text-muted-foreground'>
+              <Table2 className='h-3 w-3' />
+              Structure
+            </Button>
+          </>
         ) : (
-          <span className='text-foreground'>
-            <span className='text-muted-foreground'>Rows:</span> {rowCount.toLocaleString()}
+          <span className='px-2 text-muted-foreground'>
+            Rows: <span className='text-foreground'>{rowCount.toLocaleString()}</span>
           </span>
         )}
-
-        {/* Filter button - only in table mode */}
-        {isTableMode && columns.length > 0 && <FilterPopup columns={columns} onApply={onApplyFilters || (() => {})} />}
-
-        {/* Import button - only in table mode */}
-        {isTableMode && activeTab?.tableName && (
-          <Button size='sm' variant='ghost' onClick={() => setShowImportDialog(true)} className='h-7 text-xs'>
-            <Upload className='h-3 w-3 mr-1' />
-            Import
-          </Button>
-        )}
       </div>
-      <div className='flex items-center gap-4'>
-        <div className='flex items-center gap-2'>
-          <Button onClick={handleExportCsv} size='sm' variant='ghost' className='h-7 text-xs'>
-            <Download className='h-3 w-3 mr-1' />
-            CSV
-          </Button>
-          <Button onClick={handleExportJson} size='sm' variant='ghost' className='h-7 text-xs'>
-            <Download className='h-3 w-3 mr-1' />
-            JSON
-          </Button>
-        </div>
-        <span className='text-muted-foreground'>
-          Executed in{' '}
-          <Badge variant='outline' className='text-emerald-400 border-emerald-400/30'>
-            {executionTime}ms
-          </Badge>
-        </span>
 
-        {/* Sidebar toggles */}
-        <div className='flex items-center gap-1 border-l border-border pl-3'>
+      {/* ── Divider ── */}
+      {isTableMode && <div className='w-px h-4 bg-border mx-1' />}
+
+      {/* ── Utility buttons (import / export / history) ── */}
+      <div className='flex items-center gap-0.5'>
+        {isTableMode && activeTab?.tableName && (
           <Button
             size='icon'
-            variant={sidebarState?.isOpen && sidebarState.mode === 'history' ? 'secondary' : 'ghost'}
-            className='h-7 w-7'
-            onClick={() => handleToggleSidebar('history')}
-            title='Query History'
+            variant='ghost'
+            className='h-6 w-6'
+            onClick={() => setShowImportDialog(true)}
+            title='Import'
           >
-            <History className='h-4 w-4' />
+            <Upload className='h-3 w-3' />
           </Button>
-        </div>
+        )}
+        <Button size='icon' variant='ghost' className='h-6 w-6' onClick={handleExportCsv} title='Export CSV'>
+          <Download className='h-3 w-3' />
+        </Button>
+        <Button
+          size='icon'
+          variant={sidebarState?.isOpen && sidebarState.mode === 'history' ? 'secondary' : 'ghost'}
+          className='h-6 w-6'
+          onClick={handleToggleHistory}
+          title='Query History'
+        >
+          <History className='h-3 w-3' />
+        </Button>
+      </div>
+
+      {/* ── Center: pagination info ── */}
+      <div className='flex-1 flex items-center justify-center'>
+        {isTableMode && pagination ? (
+          <span className='text-muted-foreground whitespace-nowrap'>
+            {pagination.totalCount > 0 ? (
+              <>
+                <span className='text-foreground'>{startRow.toLocaleString()}</span>
+                {'–'}
+                <span className='text-foreground'>{endRow.toLocaleString()}</span>
+                {' of '}
+                <span className='text-foreground'>~{pagination.totalCount.toLocaleString()}</span>
+                {' rows'}
+              </>
+            ) : (
+              'No rows'
+            )}
+          </span>
+        ) : (
+          <span className='text-muted-foreground'>{executionTime}ms</span>
+        )}
+      </div>
+
+      {/* ── Right: Filters + pagination nav ── */}
+      <div className='flex items-center gap-1'>
+        {/* Filters button */}
+        {isTableMode && columns.length > 0 && (
+          <FilterPopup columns={columns} onApply={onApplyFilters || (() => {})} asTextButton />
+        )}
+
+        {/* Pagination nav */}
+        {isTableMode && pagination && (
+          <>
+            <div className='w-px h-4 bg-border mx-0.5' />
+            <Select
+              value={pagination.pageSize.toString()}
+              onValueChange={(v) => handlePageSizeChange(Number(v))}
+              disabled={loading}
+            >
+              <SelectTrigger className='h-6 w-[58px] text-xs border-0 shadow-none bg-transparent focus:ring-0'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <SelectItem key={size} value={size.toString()} className='text-xs'>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size='icon'
+              variant='ghost'
+              className='h-6 w-6'
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={loading || !canGoPrev}
+              title='Previous page'
+            >
+              <ChevronLeft className='h-3.5 w-3.5' />
+            </Button>
+            <span className='text-xs text-muted-foreground px-1 min-w-[3rem] text-center'>
+              {pagination.page} / {totalPages}
+            </span>
+            <Button
+              size='icon'
+              variant='ghost'
+              className='h-6 w-6'
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={loading || !canGoNext}
+              title='Next page'
+            >
+              <ChevronRight className='h-3.5 w-3.5' />
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Import Dialog */}

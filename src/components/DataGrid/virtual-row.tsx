@@ -33,10 +33,6 @@ interface VirtualRowProps {
   getCellPendingValue: (rowIndex: number, columnName: string) => unknown
   onCommitEdit: (rowIndex: number, columnName: string, value: unknown, columnType: string) => void
   onCancelEdit: () => void
-
-  // Row selection handlers
-  setSelectedRowIndex: (index: number) => void
-  setSelectedRows: React.Dispatch<React.SetStateAction<Set<number>>>
 }
 
 /**
@@ -60,8 +56,6 @@ export function VirtualRow({
   getCellPendingValue,
   onCommitEdit,
   onCancelEdit,
-  setSelectedRowIndex,
-  setSelectedRows,
 }: VirtualRowProps) {
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isEvenRow = virtualRow.index % 2 === 0

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { useUiStore } from '@/stores/uiStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { DB_COLORS } from '@/types/workspace'
-import { ChevronLeft, PanelLeft, PanelRight } from 'lucide-react'
+import { ChevronLeft, PanelBottom, PanelLeft, PanelRight } from 'lucide-react'
 
 interface HeaderProps {
   onDisconnect?: () => void
@@ -23,6 +23,8 @@ export function Header({ onDisconnect }: HeaderProps) {
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const leftPanelOpen = useUiStore((s) => s.leftPanelOpen)
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
+  const sqlBarOpen = useUiStore((s) => s.sqlBarOpen)
+  const toggleSqlBar = useUiStore((s) => s.toggleSqlBar)
   const setSidebarOpen = useWorkspaceManagerStore((s) => s.setSidebarOpen)
   const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
 
@@ -114,6 +116,17 @@ export function Header({ onDisconnect }: HeaderProps) {
         >
           <PanelLeft className='h-4 w-4' />
         </Button>
+        {activeTab?.type === 'table' && (
+          <Button
+            size='icon'
+            variant={sqlBarOpen ? 'secondary' : 'ghost'}
+            className='h-7 w-7'
+            onClick={toggleSqlBar}
+            title='Toggle SQL Bar'
+          >
+            <PanelBottom className='h-4 w-4' />
+          </Button>
+        )}
         {activeTab && (
           <Button
             size='icon'

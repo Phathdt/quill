@@ -2,6 +2,7 @@ import { DataGrid } from '@/components/DataGrid/DataGrid'
 import { GeneratedSqlBar } from '@/components/DataGrid/GeneratedSqlBar'
 import { RecordDetailSidebar } from '@/components/DataGrid/RecordDetailSidebar'
 import { QueryEditor } from '@/components/QueryEditor/QueryEditor'
+import { useUiStore } from '@/stores/uiStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 
 import { EmptyState } from './EmptyState'
@@ -24,6 +25,8 @@ export function WorkspaceContent() {
     return <EmptyState onCreateTab={handleCreateTab} />
   }
 
+  const sqlBarOpen = useUiStore((s) => s.sqlBarOpen)
+
   // Table mode hides the SQL editor
   const isTableMode = activeTab?.type === 'table'
   const sidebarState = activeTab?.sidebarState
@@ -38,10 +41,11 @@ export function WorkspaceContent() {
         {/* Content area: Editor (query mode only) + Results */}
         <div className='flex-1 flex flex-col overflow-hidden'>
           {!isTableMode && <QueryEditor />}
-          {isTableMode && <GeneratedSqlBar />}
           <div className='flex-1 overflow-hidden'>
             <DataGrid />
           </div>
+          {/* SQL bar at bottom - toggled via Code button in GridToolbar */}
+          {isTableMode && sqlBarOpen && <GeneratedSqlBar />}
         </div>
       </div>
 

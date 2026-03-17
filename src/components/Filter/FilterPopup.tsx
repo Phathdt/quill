@@ -15,9 +15,10 @@ import { FilterRow } from './FilterRow'
 interface FilterPopupProps {
   columns: Column[]
   onApply: () => void
+  asTextButton?: boolean
 }
 
-export function FilterPopup({ columns, onApply }: FilterPopupProps) {
+export function FilterPopup({ columns, onApply, asTextButton }: FilterPopupProps) {
   const [open, setOpen] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
@@ -92,15 +93,31 @@ export function FilterPopup({ columns, onApply }: FilterPopupProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant='outline' size='sm' className='h-7 text-xs gap-1.5'>
-          <Filter className='h-3.5 w-3.5' />
-          Filter
-          {activeFilterCount > 0 && (
-            <span className='ml-1 px-1.5 py-0.5 bg-primary text-primary-foreground rounded-full text-[10px]'>
-              {activeFilterCount}
-            </span>
-          )}
-        </Button>
+        {asTextButton ? (
+          <Button
+            variant={activeFilterCount > 0 ? 'secondary' : 'ghost'}
+            size='sm'
+            className='h-6 px-2.5 text-xs gap-1.5'
+          >
+            <Filter className='h-3 w-3' />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className='px-1.5 py-0.5 bg-primary text-primary-foreground rounded-full text-[10px]'>
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+        ) : (
+          <Button variant='outline' size='sm' className='h-7 text-xs gap-1.5'>
+            <Filter className='h-3.5 w-3.5' />
+            Filter
+            {activeFilterCount > 0 && (
+              <span className='ml-1 px-1.5 py-0.5 bg-primary text-primary-foreground rounded-full text-[10px]'>
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent className='w-[650px] p-0' align='start'>
         <div className='flex items-center justify-between px-4 py-3 border-b border-border'>

@@ -479,8 +479,6 @@ export function DataGrid() {
                   getCellPendingValue={getCellPendingValue}
                   onCommitEdit={commitCellEdit}
                   onCancelEdit={cancelEditing}
-                  setSelectedRowIndex={setSelectedRowIndex}
-                  setSelectedRows={setSelectedRows}
                 />
               )
             })}
