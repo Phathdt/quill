@@ -7,17 +7,20 @@ import { useTableFinderStore } from '@/stores/tableFinderStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Command } from 'cmdk'
 import { Search, Table } from 'lucide-react'
+import { useShallow } from 'zustand/shallow'
 
 export function TableFinderModal() {
   const { isOpen, close } = useTableFinderStore()
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  // Select only primitive id to avoid infinite re-render from object reference instability
+  const activeWorkspaceId = useWorkspaceManagerStore((s) => s.getActiveWorkspace()?.id)
   const createTab = useWorkspaceManagerStore((s) => s.createTab)
   const findTableTab = useWorkspaceManagerStore((s) => s.findTableTab)
   const switchTab = useWorkspaceManagerStore((s) => s.switchTab)
 
-  const tables = useSchemaStore((s) => (activeWorkspace ? s.getTables(activeWorkspace.id) : []))
+  // useShallow prevents re-renders when array contents haven't changed
+  const tables = useSchemaStore(useShallow((s) => s.cache[activeWorkspaceId ?? '']?.tables ?? []))
 
   const { execute } = useExecuteQuery()
 
@@ -28,17 +31,19 @@ export function TableFinderModal() {
   }, [isOpen])
 
   const handleSelect = async (tableName: string) => {
-    if (!activeWorkspace) return
+    // Read fresh state to avoid stale closure
+    const workspace = useWorkspaceManagerStore.getState().getActiveWorkspace()
+    if (!workspace) return
     close()
 
     const safeTableName = sanitizeSqlIdentifier(tableName)
-    const existingTabId = findTableTab(activeWorkspace.id, safeTableName)
+    const existingTabId = findTableTab(workspace.id, safeTableName)
     if (existingTabId) {
-      switchTab(activeWorkspace.id, existingTabId)
+      switchTab(workspace.id, existingTabId)
       return
     }
 
-    createTab(activeWorkspace.id, 'table', tableName, safeTableName)
+    createTab(workspace.id, 'table', tableName, safeTableName)
     await execute()
   }
 
