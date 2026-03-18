@@ -330,24 +330,98 @@ Key architecture choices made during development:
 
 ## Development
 
-### Prerequisites
+### macOS
 
-- Node.js 18+
-- Rust 1.70+
-- Yarn
-
-### Setup
+**1. Install Homebrew** (if not already installed)
 
 ```bash
-# Install dependencies
-yarn install
-
-# Run development
-yarn tauri dev
-
-# Build production
-yarn tauri build
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
+
+**2. Install system dependencies**
+
+```bash
+brew install node yarn
+```
+
+**3. Install Rust**
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+**4. Clone and run**
+
+```bash
+git clone https://github.com/Phathdt/quill.git
+cd quill
+yarn install
+yarn tauri dev
+```
+
+---
+
+### Ubuntu / Debian
+
+**1. Install system dependencies**
+
+```bash
+sudo apt update
+sudo apt install -y \
+  libwebkit2gtk-4.0-dev \
+  libssl-dev \
+  libgtk-3-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev \
+  libssh2-1-dev \
+  pkg-config \
+  curl \
+  build-essential
+```
+
+**2. Install Rust**
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+**3. Install Node.js 20+ via nvm**
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc   # or ~/.zshrc if using zsh
+nvm install 20
+nvm use 20
+```
+
+**4. Install Yarn**
+
+```bash
+npm install -g yarn
+```
+
+**5. Clone and run**
+
+```bash
+git clone https://github.com/Phathdt/quill.git
+cd quill
+yarn install
+yarn tauri dev
+```
+
+---
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `yarn tauri dev` | Start development (frontend + Tauri window) |
+| `yarn vite:dev` | Frontend only (no Tauri window) |
+| `yarn type-check` | TypeScript check |
+| `yarn lint` | ESLint fix |
+| `yarn format` | Prettier format |
 
 ### IDE Setup
 
