@@ -16,6 +16,14 @@ import type { TableColumn, TableIndex, TableStructure } from '@/types/schema'
 import type { DbType } from '@/types/workspace'
 import { AlertCircle, Loader2, Plus, Trash2 } from 'lucide-react'
 
+/** Extract a human-readable message from any thrown value (including Tauri error objects) */
+function extractError(e: unknown): string {
+  if (e instanceof Error) return e.message
+  if (typeof e === 'string') return e
+  if (e && typeof e === 'object' && 'message' in e) return String((e as { message: unknown }).message)
+  return JSON.stringify(e)
+}
+
 interface StructureViewProps {
   workspaceId: string
   tableName: string
@@ -120,7 +128,7 @@ function ColumnsGrid({
     try {
       await onDdlExecuted(sql)
     } catch (e) {
-      toast.error(String(e))
+      toast.error(extractError(e))
     }
   }
 
@@ -155,7 +163,7 @@ function ColumnsGrid({
               try {
                 runDdl(changeColumnType(dbType, tableName, col.name, newType))
               } catch (e) {
-                toast.error(String(e))
+                toast.error(extractError(e))
               }
             }}
           />
@@ -168,7 +176,7 @@ function ColumnsGrid({
               try {
                 runDdl(setColumnNullable(dbType, tableName, col.name, !col.nullable))
               } catch (e) {
-                toast.error(String(e))
+                toast.error(extractError(e))
               }
             }}
             title='Click to toggle NOT NULL'
@@ -186,7 +194,7 @@ function ColumnsGrid({
               try {
                 runDdl(setColumnDefault(dbType, tableName, col.name, val === '' ? null : val))
               } catch (e) {
-                toast.error(String(e))
+                toast.error(extractError(e))
               }
             }}
           />
@@ -233,7 +241,7 @@ function AddIndexForm({
       await onDdlExecuted(createIndex(dbType, tableName, indexName.trim(), colList, unique))
       onCancel()
     } catch (e) {
-      toast.error(String(e))
+      toast.error(extractError(e))
     }
   }
 
@@ -360,7 +368,7 @@ export function StructureView({ workspaceId, tableName, dbType }: StructureViewP
     try {
       setStructure(await getTableStructure(workspaceId, tableName))
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(extractError(err))
     } finally {
       setLoading(false)
     }
@@ -370,9 +378,13 @@ export function StructureView({ workspaceId, tableName, dbType }: StructureViewP
 
   // Execute a DDL statement then reload structure
   const handleDdl = async (sql: string) => {
-    await executeQuery(workspaceId, sql)
-    toast.success('Schema updated')
-    await load()
+    try {
+      await executeQuery(workspaceId, sql)
+      toast.success('Schema updated')
+      await load()
+    } catch (e) {
+      toast.error(extractError(e))
+    }
   }
 
   if (loading) {
