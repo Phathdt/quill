@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import type { Row } from '@tanstack/react-table'
 
@@ -84,6 +84,18 @@ export function useDataGridKeyboard({
   activeWorkspace,
   activeTab,
 }: UseDataGridKeyboardProps) {
+  // Debounced sidebar navigation — fires 120ms after last arrow key
+  const navigateTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const debouncedRowNavigate = useCallback(
+    (rowIndex: number) => {
+      if (navigateTimerRef.current) clearTimeout(navigateTimerRef.current)
+      navigateTimerRef.current = setTimeout(() => {
+        onRowNavigate?.(rowIndex)
+      }, 120)
+    },
+    [onRowNavigate]
+  )
+
   // Handle paste rows from clipboard
   const handlePasteRows = useCallback(async () => {
     if (!activeWorkspace || !activeTab || !result?.columns) {
@@ -281,7 +293,7 @@ export function useDataGridKeyboard({
               setFocusedCell({ row: newRow, col: focusedCell.col })
               setSelectedRowIndex(newRow)
               setSelectedRows(new Set([newRow]))
-              onRowNavigate?.(newRow)
+              debouncedRowNavigate(newRow)
             }
             break
           case 'ArrowDown':
@@ -291,7 +303,7 @@ export function useDataGridKeyboard({
               setFocusedCell({ row: newRow, col: focusedCell.col })
               setSelectedRowIndex(newRow)
               setSelectedRows(new Set([newRow]))
-              onRowNavigate?.(newRow)
+              debouncedRowNavigate(newRow)
             }
             break
           case 'ArrowLeft':
@@ -361,6 +373,6 @@ export function useDataGridKeyboard({
     activeWorkspace,
     activeTab,
     addPendingDeletes,
-    onRowNavigate,
+    debouncedRowNavigate,
   ])
 }
