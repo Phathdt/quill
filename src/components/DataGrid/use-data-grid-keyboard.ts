@@ -13,6 +13,7 @@ type RowData = Record<string, string | number | boolean | null>
 interface UseDataGridKeyboardProps {
   // Selection state
   selectedRowIndex: number | null
+  setSelectedRowIndex: (index: number | null) => void
   selectedRows: Set<number>
   setSelectedRows: (rows: Set<number>) => void
 
@@ -58,6 +59,7 @@ interface UseDataGridKeyboardProps {
  */
 export function useDataGridKeyboard({
   selectedRowIndex,
+  setSelectedRowIndex,
   selectedRows,
   setSelectedRows,
   focusedCell,
@@ -237,7 +239,6 @@ export function useDataGridKeyboard({
           const rowsToDelete = rowsToMark.filter((idx) => idx < existingRowCount && !pendingDeletes.has(idx))
           if (rowsToDelete.length > 0) {
             addPendingDeletes(activeWorkspace.id, activeTab.id, rowsToDelete)
-            toast.success(`${rowsToDelete.length} row(s) marked for deletion (Cmd+S to apply)`)
             setSelectedRows(new Set())
           }
         }
@@ -274,7 +275,7 @@ export function useDataGridKeyboard({
               e.preventDefault()
               const newRow = focusedCell.row - 1
               setFocusedCell({ row: newRow, col: focusedCell.col })
-              // Also update selection to match focused row
+              setSelectedRowIndex(newRow)
               setSelectedRows(new Set([newRow]))
             }
             break
@@ -283,7 +284,7 @@ export function useDataGridKeyboard({
               e.preventDefault()
               const newRow = focusedCell.row + 1
               setFocusedCell({ row: newRow, col: focusedCell.col })
-              // Also update selection to match focused row
+              setSelectedRowIndex(newRow)
               setSelectedRows(new Set([newRow]))
             }
             break
@@ -334,6 +335,7 @@ export function useDataGridKeyboard({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [
     selectedRowIndex,
+    setSelectedRowIndex,
     selectedRows,
     setSelectedRows,
     rows,

@@ -258,6 +258,7 @@ export function DataGrid() {
   // Keyboard shortcuts hook
   useDataGridKeyboard({
     selectedRowIndex,
+    setSelectedRowIndex,
     selectedRows,
     setSelectedRows,
     focusedCell,
