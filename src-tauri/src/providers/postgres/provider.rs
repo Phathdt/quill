@@ -4,6 +4,7 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use serde_json::Value;
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgSslMode};
 use sqlx::{Arguments, Column as SqlxColumn, Row, TypeInfo, ValueRef};
+use uuid::Uuid;
 use std::str::FromStr;
 use std::time::Instant;
 
@@ -93,6 +94,10 @@ impl PostgresProvider {
                 if let Ok(v) = row.try_get::<f64, _>(i) {
                     return serde_json::json!(v);
                 }
+                // Handle UUID type (must come before String to avoid binary decode failure)
+                if let Ok(v) = row.try_get::<Uuid, _>(i) {
+                    return serde_json::json!(v.to_string());
+                }
                 if let Ok(v) = row.try_get::<String, _>(i) {
                     return serde_json::json!(v);
                 }
@@ -162,12 +167,17 @@ impl PostgresProvider {
                 }
             }
             Value::String(s) => {
-                // Try to parse as timestamp
-                if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f") {
+                // Try UUID first (exact 36-char format)
+                if let Ok(u) = Uuid::parse_str(s) {
+                    args.add(u)
+                // Try timestamp formats
+                } else if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f") {
                     args.add(dt)
                 } else if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
                     args.add(dt)
                 } else {
+                    // Covers text, varchar, ENUM, and other string-compatible types.
+                    // PostgreSQL coerces TEXT → ENUM automatically when the column type is known.
                     args.add(s.clone())
                 }
             }
