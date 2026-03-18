@@ -20,6 +20,7 @@ interface TableChange {
   changes: CellEdit[]
   newRows: PendingNewRow[]
   deletes: number[]
+  ddls: string[]
   primaryKeys: string[]
   columns: { name: string }[]
   rows: unknown[][]
@@ -45,7 +46,8 @@ export function EditingToolbar({ onSave }: EditingToolbarProps) {
       const pendingNewRows = tab.editingState?.pendingNewRows ?? []
       const pendingDeletes = tab.editingState?.pendingDeletes ?? []
 
-      if (changesList.length === 0 && pendingNewRows.length === 0 && pendingDeletes.length === 0) continue
+      const pendingDdls = tab.editingState?.pendingDdls ?? []
+      if (changesList.length === 0 && pendingNewRows.length === 0 && pendingDeletes.length === 0 && pendingDdls.length === 0) continue
 
       changes.push({
         tabId: tab.id,
@@ -53,6 +55,7 @@ export function EditingToolbar({ onSave }: EditingToolbarProps) {
         changes: changesList,
         newRows: pendingNewRows,
         deletes: pendingDeletes,
+        ddls: tab.editingState?.pendingDdls ?? [],
         primaryKeys: tab.editingState?.primaryKeyColumns ?? [],
         columns: tab.result?.columns ?? [],
         rows: tab.result?.rows ?? [],
@@ -65,7 +68,8 @@ export function EditingToolbar({ onSave }: EditingToolbarProps) {
   const totalPendingChanges = allTableChanges.reduce((sum, tc) => sum + tc.changes.length, 0)
   const totalPendingInserts = allTableChanges.reduce((sum, tc) => sum + tc.newRows.length, 0)
   const totalPendingDeletes = allTableChanges.reduce((sum, tc) => sum + tc.deletes.length, 0)
-  const totalPendingCount = totalPendingChanges + totalPendingInserts + totalPendingDeletes
+  const totalPendingDdls = allTableChanges.reduce((sum, tc) => sum + tc.ddls.length, 0)
+  const totalPendingCount = totalPendingChanges + totalPendingInserts + totalPendingDeletes + totalPendingDdls
 
   if (totalPendingCount === 0) return null
 
@@ -120,6 +124,11 @@ export function EditingToolbar({ onSave }: EditingToolbarProps) {
           sql: `INSERT INTO "public"."${tableChange.tableName}" (${columns.map((c) => `"${c}"`).join(', ')}) VALUES (${values.map((v) => formatSqlValue(v)).join(', ')});`,
           type: 'INSERT',
         })
+      }
+
+      // Include DDL statements from Structure view
+      for (const sql of tableChange.ddls) {
+        statements.push({ tableName: tableChange.tableName, sql, type: 'UPDATE' })
       }
 
       // Generate DELETE statements for pending deletes

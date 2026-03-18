@@ -15,6 +15,8 @@ export interface WorkspaceEditingSlice {
   clearPendingNewRows: (workspaceId: string, tabId: string) => void
   addPendingDeletes: (workspaceId: string, tabId: string, rowIndices: number[]) => void
   clearPendingDeletes: (workspaceId: string, tabId: string) => void
+  addPendingDdl: (workspaceId: string, tabId: string, sql: string) => void
+  clearPendingDdls: (workspaceId: string, tabId: string) => void
 }
 
 export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, [], [], WorkspaceEditingSlice> = (
@@ -39,6 +41,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -72,6 +75,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   },
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -102,6 +106,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: restChanges,
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -131,6 +136,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: {},
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: null,
                 },
               },
@@ -160,6 +166,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: cell,
                 },
               },
@@ -190,6 +197,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: [...existingRows, ...rows],
                   pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -234,6 +242,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: updatedRows,
                   pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -263,6 +272,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: [],
                   pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -294,6 +304,7 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   pendingDeletes: merged,
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },
@@ -323,6 +334,67 @@ export const createWorkspaceEditingSlice: StateCreator<WorkspaceManagerStore, []
                   pendingChanges: tab.editingState?.pendingChanges ?? {},
                   pendingNewRows: tab.editingState?.pendingNewRows ?? [],
                   pendingDeletes: [],
+                  pendingDdls: tab.editingState?.pendingDdls ?? [],
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  addPendingDdl: (workspaceId, tabId, sql) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: [...(tab.editingState?.pendingDdls ?? []), sql],
+                  editingCell: tab.editingState?.editingCell ?? null,
+                },
+              },
+            },
+          },
+        },
+      }
+    })
+  },
+
+  clearPendingDdls: (workspaceId, tabId) => {
+    set((s) => {
+      const ws = s.workspaces[workspaceId]
+      if (!ws || !ws.tabs[tabId]) return s
+      const tab = ws.tabs[tabId]
+      return {
+        workspaces: {
+          ...s.workspaces,
+          [workspaceId]: {
+            ...ws,
+            tabs: {
+              ...ws.tabs,
+              [tabId]: {
+                ...tab,
+                editingState: {
+                  primaryKeyColumns: tab.editingState?.primaryKeyColumns ?? [],
+                  pendingChanges: tab.editingState?.pendingChanges ?? {},
+                  pendingNewRows: tab.editingState?.pendingNewRows ?? [],
+                  pendingDeletes: tab.editingState?.pendingDeletes ?? [],
+                  pendingDdls: [],
                   editingCell: tab.editingState?.editingCell ?? null,
                 },
               },

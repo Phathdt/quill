@@ -13,6 +13,7 @@ export function useInlineEditing() {
   const clearPendingChanges = useWorkspaceManagerStore((s) => s.clearPendingChanges)
   const clearPendingNewRows = useWorkspaceManagerStore((s) => s.clearPendingNewRows)
   const clearPendingDeletes = useWorkspaceManagerStore((s) => s.clearPendingDeletes)
+  const clearPendingDdls = useWorkspaceManagerStore((s) => s.clearPendingDdls)
   const updatePendingNewRow = useWorkspaceManagerStore((s) => s.updatePendingNewRow)
   const setEditingCell = useWorkspaceManagerStore((s) => s.setEditingCell)
   const setTabResult = useWorkspaceManagerStore((s) => s.setTabResult)
@@ -111,14 +112,15 @@ export function useInlineEditing() {
   const savePendingChanges = useCallback(async () => {
     if (!workspaceId || !workspaceTabs) return
 
-    // Collect all tabs with pending changes, new rows, or deletes
+    // Collect all tabs with pending changes, new rows, deletes, or DDLs
     const allTabs = Object.values(workspaceTabs)
     const tabsWithChanges = allTabs.filter((tab) => {
       if (tab.type !== 'table' || !tab.tableName) return false
       const changes = tab.editingState?.pendingChanges ?? {}
       const newRows = tab.editingState?.pendingNewRows ?? []
       const deletes = tab.editingState?.pendingDeletes ?? []
-      return Object.keys(changes).length > 0 || newRows.length > 0 || deletes.length > 0
+      const ddls = tab.editingState?.pendingDdls ?? []
+      return Object.keys(changes).length > 0 || newRows.length > 0 || deletes.length > 0 || ddls.length > 0
     })
 
     if (tabsWithChanges.length === 0) return
@@ -126,6 +128,7 @@ export function useInlineEditing() {
     let totalRowsUpdated = 0
     let totalRowsInserted = 0
     let totalRowsDeleted = 0
+    let parts_ddl = 0
     const errors: string[] = []
 
     try {
@@ -288,6 +291,18 @@ export function useInlineEditing() {
 
           clearPendingDeletes(workspaceId, tab.id)
         }
+
+        // Handle pending DDL statements (from Structure view)
+        const pendingDdls = tab.editingState?.pendingDdls ?? []
+        if (pendingDdls.length > 0) {
+          const { executeQuery } = await import('@/lib/tauri')
+          for (const sql of pendingDdls) {
+            await executeQuery(workspaceId, sql)
+          }
+          clearPendingDdls(workspaceId, tab.id)
+          totalRowsUpdated += 0 // DDL doesn't affect row counts
+          parts_ddl += pendingDdls.length
+        }
       }
 
       // Build success message
@@ -295,9 +310,9 @@ export function useInlineEditing() {
       if (totalRowsUpdated > 0) parts.push(`Updated ${totalRowsUpdated} row(s)`)
       if (totalRowsInserted > 0) parts.push(`Inserted ${totalRowsInserted} row(s)`)
       if (totalRowsDeleted > 0) parts.push(`Deleted ${totalRowsDeleted} row(s)`)
+      if (parts_ddl > 0) parts.push(`Applied ${parts_ddl} DDL change${parts_ddl > 1 ? 's' : ''}`)
 
       if (errors.length > 0) {
-        // Show first error in full for better debugging
         toast.error(errors[0])
       } else if (parts.length > 0) {
         const tableCount = tabsWithChanges.length
@@ -307,7 +322,7 @@ export function useInlineEditing() {
       console.error('Failed to save changes:', error)
       toast.error(`Failed to save changes: ${error}`)
     }
-  }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows, clearPendingDeletes, setTabResult])
+  }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows, clearPendingDeletes, clearPendingDdls, setTabResult])
 
   // Discard ALL pending changes across ALL table tabs in the workspace
   const discardPendingChanges = useCallback(() => {
@@ -319,17 +334,13 @@ export function useInlineEditing() {
       const changes = tab.editingState?.pendingChanges ?? {}
       const newRows = tab.editingState?.pendingNewRows ?? []
       const deletes = tab.editingState?.pendingDeletes ?? []
-      if (Object.keys(changes).length > 0) {
-        clearPendingChanges(workspaceId, tab.id)
-      }
-      if (newRows.length > 0) {
-        clearPendingNewRows(workspaceId, tab.id)
-      }
-      if (deletes.length > 0) {
-        clearPendingDeletes(workspaceId, tab.id)
-      }
+      const ddls = tab.editingState?.pendingDdls ?? []
+      if (Object.keys(changes).length > 0) clearPendingChanges(workspaceId, tab.id)
+      if (newRows.length > 0) clearPendingNewRows(workspaceId, tab.id)
+      if (deletes.length > 0) clearPendingDeletes(workspaceId, tab.id)
+      if (ddls.length > 0) clearPendingDdls(workspaceId, tab.id)
     }
-  }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows, clearPendingDeletes])
+  }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows, clearPendingDeletes, clearPendingDdls])
 
   const hasPendingChanges = useMemo(() => {
     if (!workspaceTabs) return false
@@ -338,7 +349,8 @@ export function useInlineEditing() {
       const changes = tab.editingState?.pendingChanges ?? {}
       const newRows = tab.editingState?.pendingNewRows ?? []
       const deletes = tab.editingState?.pendingDeletes ?? []
-      return Object.keys(changes).length > 0 || newRows.length > 0 || deletes.length > 0
+      const ddls = tab.editingState?.pendingDdls ?? []
+      return Object.keys(changes).length > 0 || newRows.length > 0 || deletes.length > 0 || ddls.length > 0
     })
   }, [workspaceTabs])
 

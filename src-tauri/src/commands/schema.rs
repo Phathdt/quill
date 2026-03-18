@@ -33,6 +33,7 @@ fn validate_identifier(name: &str) -> Result<(), AppError> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TableColumn {
     pub name: String,
     pub data_type: String,
@@ -42,6 +43,7 @@ pub struct TableColumn {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TableIndex {
     pub name: String,
     pub columns: Vec<String>,
@@ -52,6 +54,7 @@ pub struct TableIndex {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ForeignKey {
     pub name: String,
     pub column: String,
@@ -60,6 +63,7 @@ pub struct ForeignKey {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TableStructure {
     pub table_name: String,
     pub columns: Vec<TableColumn>,
@@ -84,11 +88,15 @@ pub async fn get_table_structure(
             let columns_query = r#"
                 SELECT
                     c.column_name,
-                    c.data_type,
+                    pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
                     c.is_nullable,
                     c.column_default,
                     CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary_key
                 FROM information_schema.columns c
+                JOIN pg_attribute a ON a.attrelid = $1::regclass
+                    AND a.attname = c.column_name
+                    AND a.attnum > 0
+                    AND NOT a.attisdropped
                 LEFT JOIN (
                     SELECT a.attname as column_name
                     FROM pg_index i

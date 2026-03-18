@@ -16,6 +16,7 @@ export interface EditingState {
   pendingChanges: Record<string, CellEdit> // key: `${rowIndex}-${columnName}`
   pendingNewRows: PendingNewRow[] // New rows to be inserted on save
   pendingDeletes: number[] // Row indices marked for deletion
+  pendingDdls: string[] // DDL statements staged from Structure view
   editingCell: { rowIndex: number; columnIndex: number } | null
 }
 

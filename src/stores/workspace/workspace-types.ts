@@ -80,6 +80,8 @@ export interface WorkspaceManagerStore extends WorkspaceManagerState {
   clearPendingNewRows: (workspaceId: string, tabId: string) => void
   addPendingDeletes: (workspaceId: string, tabId: string, rowIndices: number[]) => void
   clearPendingDeletes: (workspaceId: string, tabId: string) => void
+  addPendingDdl: (workspaceId: string, tabId: string, sql: string) => void
+  clearPendingDdls: (workspaceId: string, tabId: string) => void
 
   // Selectors
   getActiveWorkspace: () => Workspace | null
