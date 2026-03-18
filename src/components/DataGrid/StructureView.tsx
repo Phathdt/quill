@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input'
 import { toast } from '@/lib/toast'
 import { getTableStructure } from '@/lib/tauri'
 import {
+  addColumn,
   changeColumnType,
   createIndex,
+  dropColumn,
   dropIndex,
   renameColumn,
   setColumnDefault,
@@ -140,6 +142,79 @@ function HeadCell({ children, width }: { children: React.ReactNode; width: strin
   )
 }
 
+// ─── Add column form ──────────────────────────────────────────────────────────
+function AddColumnForm({
+  tableName,
+  dbType,
+  onAddPending,
+  onCancel,
+}: {
+  tableName: string
+  dbType: DbType
+  onAddPending: OnAddPending
+  onCancel: () => void
+}) {
+  const [colName, setColName] = useState('')
+  const [dataType, setDataType] = useState('varchar(255)')
+  const [nullable, setNullable] = useState(true)
+  const [defaultVal, setDefaultVal] = useState('')
+
+  const submit = () => {
+    if (!colName.trim() || !dataType.trim()) {
+      toast.error('Column name and data type are required')
+      return
+    }
+    const name = colName.trim()
+    const type = dataType.trim()
+    const def = defaultVal.trim() || null
+    try {
+      onAddPending(
+        addColumn(dbType, tableName, name, type, nullable, def),
+        (s) => ({
+          ...s,
+          columns: [
+            ...s.columns,
+            { name, dataType: type, nullable, defaultValue: def, isPrimaryKey: false },
+          ],
+        })
+      )
+      onCancel()
+    } catch (e) {
+      toast.error(extractError(e))
+    }
+  }
+
+  return (
+    <div className='flex items-center gap-2 px-3 py-2 bg-muted/30 border-t border-border text-xs'>
+      <Input
+        placeholder='column_name'
+        value={colName}
+        onChange={(e) => setColName(e.target.value)}
+        className='h-6 text-xs px-2 w-36 font-mono'
+        autoFocus
+      />
+      <Input
+        placeholder='data_type'
+        value={dataType}
+        onChange={(e) => setDataType(e.target.value)}
+        className='h-6 text-xs px-2 w-36 font-mono'
+      />
+      <label className='flex items-center gap-1 cursor-pointer select-none'>
+        <input type='checkbox' checked={nullable} onChange={(e) => setNullable(e.target.checked)} />
+        NULLABLE
+      </label>
+      <Input
+        placeholder='default (optional)'
+        value={defaultVal}
+        onChange={(e) => setDefaultVal(e.target.value)}
+        className='h-6 text-xs px-2 w-32 font-mono'
+      />
+      <Button size='sm' className='h-6 px-3 text-xs' onClick={submit}>Stage</Button>
+      <Button size='sm' variant='ghost' className='h-6 px-3 text-xs' onClick={onCancel}>Cancel</Button>
+    </div>
+  )
+}
+
 // ─── Columns mini-grid ───────────────────────────────────────────────────────
 function ColumnsGrid({
   columns,
@@ -152,9 +227,33 @@ function ColumnsGrid({
   dbType: DbType
   onAddPending: OnAddPending
 }) {
+  const [addingColumn, setAddingColumn] = useState(false)
+  const [selectedRow, setSelectedRow] = useState<number | null>(null)
   const displayType = (t: string) => dbType === 'postgres' ? normalizePgType(t) : t
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRow !== null) {
+      e.preventDefault()
+      e.stopPropagation()
+      const col = columns[selectedRow]
+      if (!col || col.isPrimaryKey) return
+      try {
+        onAddPending(
+          dropColumn(dbType, tableName, col.name),
+          (s) => ({ ...s, columns: s.columns.filter((c) => c.name !== col.name) })
+        )
+        setSelectedRow(null)
+      } catch (err) { toast.error(extractError(err)) }
+    }
+  }
+
   return (
-    <div className='flex flex-col border border-border rounded-sm overflow-hidden'>
+    <div
+      className='flex flex-col border border-border rounded-sm overflow-hidden'
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+    >
       <div className='flex border-b border-border bg-card'>
         <HeadCell width='40px'>#</HeadCell>
         <HeadCell width='200px'>column_name</HeadCell>
@@ -162,9 +261,14 @@ function ColumnsGrid({
         <HeadCell width='100px'>is_nullable</HeadCell>
         <HeadCell width='260px'>column_default</HeadCell>
         <HeadCell width='100px'>primary_key</HeadCell>
+        <HeadCell width='48px'>{''}</HeadCell>
       </div>
       {columns.map((col, i) => (
-        <div key={col.name} className={`flex border-b border-border ${i % 2 === 0 ? 'bg-card' : 'bg-muted/30'}`}>
+        <div
+          key={col.name}
+          className={`flex border-b border-border cursor-pointer ${selectedRow === i ? 'bg-primary/10' : i % 2 === 0 ? 'bg-card' : 'bg-muted/30'}`}
+          onClick={() => setSelectedRow(i === selectedRow ? null : i)}
+        >
           <ReadCell width='40px'><span className='text-muted-foreground'>{i + 1}</span></ReadCell>
 
           <EditableCell
@@ -239,10 +343,53 @@ function ColumnsGrid({
               {col.isPrimaryKey ? 'YES' : 'NO'}
             </span>
           </ReadCell>
+
+          {/* Drop column — disabled for primary key */}
+          <div className='flex items-center justify-center border-r border-border' style={{ width: 48, minWidth: 48 }}>
+            {!col.isPrimaryKey && (
+              <Button
+                size='icon'
+                variant='ghost'
+                className='h-6 w-6 text-muted-foreground hover:text-destructive'
+                title='Drop column'
+                onClick={() => {
+                  try {
+                    onAddPending(
+                      dropColumn(dbType, tableName, col.name),
+                      (s) => ({ ...s, columns: s.columns.filter((c) => c.name !== col.name) })
+                    )
+                  } catch (e) { toast.error(extractError(e)) }
+                }}
+              >
+                <Trash2 className='h-3 w-3' />
+              </Button>
+            )}
+          </div>
         </div>
       ))}
       {columns.length === 0 && (
         <div className='px-3 py-4 text-xs text-muted-foreground'>No columns</div>
+      )}
+
+      {addingColumn ? (
+        <AddColumnForm
+          tableName={tableName}
+          dbType={dbType}
+          onAddPending={onAddPending}
+          onCancel={() => setAddingColumn(false)}
+        />
+      ) : (
+        <div className='flex items-center px-2 py-1.5 border-t border-border bg-card/50'>
+          <Button
+            size='sm'
+            variant='ghost'
+            className='h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground'
+            onClick={() => setAddingColumn(true)}
+          >
+            <Plus className='h-3 w-3' />
+            Add Column
+          </Button>
+        </div>
       )}
     </div>
   )
@@ -330,9 +477,30 @@ function IndexesGrid({
   onAddPending: OnAddPending
 }) {
   const [addingIndex, setAddingIndex] = useState(false)
+  const [selectedRow, setSelectedRow] = useState<number | null>(null)
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRow !== null) {
+      e.preventDefault()
+      e.stopPropagation()
+      const idx = indexes[selectedRow]
+      if (!idx || idx.isPrimary) return
+      try {
+        onAddPending(
+          dropIndex(dbType, tableName, idx.name),
+          (s) => ({ ...s, indexes: s.indexes.filter((ix) => ix.name !== idx.name) })
+        )
+        setSelectedRow(null)
+      } catch (err) { toast.error(extractError(err)) }
+    }
+  }
 
   return (
-    <div className='flex flex-col border border-border rounded-sm overflow-hidden'>
+    <div
+      className='flex flex-col border border-border rounded-sm overflow-hidden'
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
       <div className='flex border-b border-border bg-card'>
         <HeadCell width='280px'>index_name</HeadCell>
         <HeadCell width='120px'>index_algorithm</HeadCell>
@@ -342,7 +510,11 @@ function IndexesGrid({
         <HeadCell width='48px'>{''}</HeadCell>
       </div>
       {indexes.map((idx, i) => (
-        <div key={idx.name} className={`flex border-b border-border ${i % 2 === 0 ? 'bg-card' : 'bg-muted/30'}`}>
+        <div
+          key={idx.name}
+          className={`flex border-b border-border cursor-pointer ${selectedRow === i ? 'bg-primary/10' : i % 2 === 0 ? 'bg-card' : 'bg-muted/30'}`}
+          onClick={() => setSelectedRow(i === selectedRow ? null : i)}
+        >
           <ReadCell width='280px' mono><span className='text-foreground'>{idx.name}</span></ReadCell>
           <ReadCell width='120px'><span className='uppercase text-muted-foreground'>{idx.indexType}</span></ReadCell>
           <ReadCell width='90px'>

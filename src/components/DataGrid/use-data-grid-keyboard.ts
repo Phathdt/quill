@@ -39,6 +39,7 @@ interface UseDataGridKeyboardProps {
 
   // Mode
   isTableMode: boolean
+  activeView?: 'data' | 'structure'
 
   // Callback when row selection changes via keyboard (e.g. for sidebar sync)
   onRowNavigate?: (rowIndex: number) => void
@@ -78,6 +79,7 @@ export function useDataGridKeyboard({
   columns,
   result,
   isTableMode,
+  activeView = 'data',
   addPendingNewRows,
   addPendingDeletes,
   onRowNavigate,
@@ -239,26 +241,33 @@ export function useDataGridKeyboard({
       }
 
       // Mark selected rows for deletion (Cmd+X, Delete, Backspace)
-      // Skip if focus is inside an input/textarea (e.g. RecordDetailSidebar)
+      // Skip if focus is inside an input/textarea/select
       const focusedTag = (document.activeElement as HTMLElement)?.tagName
       const isFocusedInInput =
         focusedTag === 'INPUT' ||
         focusedTag === 'TEXTAREA' ||
+        focusedTag === 'SELECT' ||
         (document.activeElement as HTMLElement)?.isContentEditable
       if (isTableMode && !editingCell && !isFocusedInInput) {
         const isDeleteKey = e.key === 'Delete' || e.key === 'Backspace' || ((e.metaKey || e.ctrlKey) && e.key === 'x')
 
-        // Use selectedRows if available, otherwise fall back to selectedRowIndex
-        const rowsToMark =
-          selectedRows.size > 0 ? Array.from(selectedRows) : selectedRowIndex !== null ? [selectedRowIndex] : []
-
-        if (isDeleteKey && activeWorkspace && activeTab && rowsToMark.length > 0) {
+        if (isDeleteKey) {
+          // Always prevent default to stop WebKit from navigating back on Backspace
           e.preventDefault()
-          const existingRowCount = result?.rows?.length ?? 0
-          const rowsToDelete = rowsToMark.filter((idx) => idx < existingRowCount && !pendingDeletes.has(idx))
-          if (rowsToDelete.length > 0) {
-            addPendingDeletes(activeWorkspace.id, activeTab.id, rowsToDelete)
-            setSelectedRows(new Set())
+
+          // Only mark rows for deletion when in data view
+          if (activeView === 'data') {
+            const rowsToMark =
+              selectedRows.size > 0 ? Array.from(selectedRows) : selectedRowIndex !== null ? [selectedRowIndex] : []
+
+            if (activeWorkspace && activeTab && rowsToMark.length > 0) {
+              const existingRowCount = result?.rows?.length ?? 0
+              const rowsToDelete = rowsToMark.filter((idx) => idx < existingRowCount && !pendingDeletes.has(idx))
+              if (rowsToDelete.length > 0) {
+                addPendingDeletes(activeWorkspace.id, activeTab.id, rowsToDelete)
+                setSelectedRows(new Set())
+              }
+            }
           }
         }
       }

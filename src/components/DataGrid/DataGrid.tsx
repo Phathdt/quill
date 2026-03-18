@@ -278,6 +278,7 @@ export function DataGrid() {
     columns: result?.columns,
     result,
     isTableMode,
+    activeView,
     addPendingNewRows,
     addPendingDeletes,
     onRowNavigate: (idx) => {

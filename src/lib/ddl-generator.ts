@@ -58,6 +58,39 @@ export function setColumnDefault(dbType: DbType, table: string, column: string, 
   }
 }
 
+export function addColumn(
+  dbType: DbType,
+  table: string,
+  column: string,
+  dataType: string,
+  nullable: boolean,
+  defaultValue: string | null
+): string {
+  const notNull = nullable ? '' : ' NOT NULL'
+  const def = defaultValue ? ` DEFAULT ${defaultValue}` : ''
+  switch (dbType) {
+    case 'mysql':
+      return `ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${dataType}${notNull}${def};`
+    case 'sqlite':
+      // SQLite only supports ADD COLUMN (no NOT NULL without default)
+      return `ALTER TABLE "${table}" ADD COLUMN "${column}" ${dataType}${def};`
+    default: // postgres
+      return `ALTER TABLE "${table}" ADD COLUMN "${column}" ${dataType}${notNull}${def};`
+  }
+}
+
+export function dropColumn(dbType: DbType, table: string, column: string): string {
+  switch (dbType) {
+    case 'mysql':
+      return `ALTER TABLE \`${table}\` DROP COLUMN \`${column}\`;`
+    case 'sqlite':
+      // SQLite 3.35+ supports DROP COLUMN
+      return `ALTER TABLE "${table}" DROP COLUMN "${column}";`
+    default: // postgres
+      return `ALTER TABLE "${table}" DROP COLUMN "${column}";`
+  }
+}
+
 export function dropIndex(dbType: DbType, table: string, indexName: string): string {
   switch (dbType) {
     case 'mysql':
