@@ -276,6 +276,11 @@ export function DataGrid() {
     isTableMode,
     addPendingNewRows,
     addPendingDeletes,
+    onRowNavigate: (idx) => {
+      if (activeWorkspace && activeTab) {
+        setSidebarRowIndex(activeWorkspace.id, activeTab.id, idx)
+      }
+    },
     activeWorkspace,
     activeTab,
   })

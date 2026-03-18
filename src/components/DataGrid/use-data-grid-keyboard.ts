@@ -40,6 +40,9 @@ interface UseDataGridKeyboardProps {
   // Mode
   isTableMode: boolean
 
+  // Callback when row selection changes via keyboard (e.g. for sidebar sync)
+  onRowNavigate?: (rowIndex: number) => void
+
   // Actions
   addPendingNewRows: (
     workspaceId: string,
@@ -77,6 +80,7 @@ export function useDataGridKeyboard({
   isTableMode,
   addPendingNewRows,
   addPendingDeletes,
+  onRowNavigate,
   activeWorkspace,
   activeTab,
 }: UseDataGridKeyboardProps) {
@@ -277,6 +281,7 @@ export function useDataGridKeyboard({
               setFocusedCell({ row: newRow, col: focusedCell.col })
               setSelectedRowIndex(newRow)
               setSelectedRows(new Set([newRow]))
+              onRowNavigate?.(newRow)
             }
             break
           case 'ArrowDown':
@@ -286,6 +291,7 @@ export function useDataGridKeyboard({
               setFocusedCell({ row: newRow, col: focusedCell.col })
               setSelectedRowIndex(newRow)
               setSelectedRows(new Set([newRow]))
+              onRowNavigate?.(newRow)
             }
             break
           case 'ArrowLeft':
@@ -355,5 +361,6 @@ export function useDataGridKeyboard({
     activeWorkspace,
     activeTab,
     addPendingDeletes,
+    onRowNavigate,
   ])
 }
