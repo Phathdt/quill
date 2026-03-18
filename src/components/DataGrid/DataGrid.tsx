@@ -425,7 +425,6 @@ export function DataGrid() {
                   setFocusedCell={setFocusedCell}
                   editingCell={editingCell}
                   isTableMode={isTableMode}
-                  onRowHover={setSelectedRowIndex}
                   onRowClick={onRowClick}
                   onCellDoubleClick={startEditing}
                   onContextMenu={handleContextMenu}

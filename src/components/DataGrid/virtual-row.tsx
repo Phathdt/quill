@@ -27,7 +27,6 @@ interface VirtualRowProps {
   isTableMode: boolean
 
   // Handlers
-  onRowHover: (rowIndex: number) => void
   onRowClick: (rowIndex: number, e: React.MouseEvent) => void
   onCellDoubleClick: (rowIndex: number, columnIndex: number) => void
   onContextMenu: (e: React.MouseEvent, cellValue: unknown, rowData: RowData) => void
@@ -51,7 +50,6 @@ export function VirtualRow({
   setFocusedCell,
   editingCell,
   isTableMode,
-  onRowHover,
   onRowClick,
   onCellDoubleClick,
   onContextMenu,
@@ -88,7 +86,6 @@ export function VirtualRow({
         transform: `translateY(${virtualRow.start}px)`,
         width: totalWidth,
       }}
-      onMouseEnter={() => onRowHover(virtualRow.index)}
       onClick={(e) => onRowClick(virtualRow.index, e)}
     >
       {row.getVisibleCells().map((cell, colIndex) => {
