@@ -8,7 +8,7 @@ import { exportToCsv } from '@/lib/export'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Column } from '@/types/database'
 import { PAGE_SIZE_OPTIONS } from '@/types/workspace'
-import { ChevronLeft, ChevronRight, Download, History, LayoutGrid, Table2, Upload } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, History, LayoutGrid, Plus, Table2, Trash2, Upload } from 'lucide-react'
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
@@ -19,9 +19,22 @@ interface GridToolbarProps {
   rows: unknown[][]
   onApplyFilters?: () => void
   onRefresh?: () => void
+  onAddRow?: () => void
+  onDeleteSelected?: () => void
+  selectedRowCount?: number
 }
 
-export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFilters, onRefresh }: GridToolbarProps) {
+export function GridToolbar({
+  rowCount,
+  executionTime,
+  columns,
+  rows,
+  onApplyFilters,
+  onRefresh,
+  onAddRow,
+  onDeleteSelected,
+  selectedRowCount = 0,
+}: GridToolbarProps) {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const setTabPagination = useWorkspaceManagerStore((s) => s.setTabPagination)
@@ -78,6 +91,28 @@ export function GridToolbar({ rowCount, executionTime, columns, rows, onApplyFil
               <Table2 className='h-3 w-3' />
               Structure
             </Button>
+
+            {/* Row actions */}
+            {onAddRow && (
+              <>
+                <div className='w-px h-4 bg-border mx-0.5' />
+                <Button size='sm' variant='ghost' className='h-6 px-2.5 text-xs rounded-sm gap-1.5' onClick={onAddRow}>
+                  <Plus className='h-3 w-3' />
+                  Row
+                </Button>
+              </>
+            )}
+            {onDeleteSelected && selectedRowCount > 0 && (
+              <Button
+                size='sm'
+                variant='ghost'
+                className='h-6 px-2.5 text-xs rounded-sm gap-1.5 text-destructive hover:text-destructive'
+                onClick={onDeleteSelected}
+              >
+                <Trash2 className='h-3 w-3' />
+                Delete ({selectedRowCount})
+              </Button>
+            )}
           </>
         ) : (
           <span className='px-2 text-muted-foreground'>

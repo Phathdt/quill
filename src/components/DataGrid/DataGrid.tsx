@@ -27,7 +27,6 @@ import { DeleteConfirmDialog } from './DeleteConfirmDialog'
 import { EditingToolbar } from './EditingToolbar'
 import { GridToolbar } from './GridToolbar'
 import { NewRowForm } from './NewRowForm'
-import { RowManager } from './RowManager'
 import { useDataGridKeyboard } from './use-data-grid-keyboard'
 import { useDataGridSelection } from './use-data-grid-selection'
 import { VirtualRow } from './virtual-row'
@@ -424,19 +423,8 @@ export function DataGrid() {
   const totalWidth = table.getTotalSize()
 
   return (
-    <div className='grid grid-rows-[auto_auto_1fr_auto] h-full overflow-hidden bg-background'>
+    <div className='grid grid-rows-[auto_1fr_auto] h-full overflow-hidden bg-background'>
       <EditingToolbar onSave={savePendingChanges} onDiscard={discardPendingChanges} />
-
-      {isTableMode && (
-        <div className='flex items-center px-3 py-1 border-b border-border bg-card'>
-          <RowManager
-            onAddRow={() => setShowNewRowForm(true)}
-            onDeleteSelected={() => setShowDeleteConfirm(true)}
-            selectedRowCount={selectedRows.size}
-            canEdit={isTableMode}
-          />
-        </div>
-      )}
 
       {/* Main scroll area - takes remaining height via grid 1fr */}
       <div ref={parentRef} className='data-grid-scroll min-h-0'>
@@ -485,6 +473,9 @@ export function DataGrid() {
         rows={result.rows}
         onApplyFilters={applyFilters}
         onRefresh={applyFilters}
+        onAddRow={isTableMode ? () => setShowNewRowForm(true) : undefined}
+        onDeleteSelected={isTableMode ? () => setShowDeleteConfirm(true) : undefined}
+        selectedRowCount={selectedRows.size}
       />
 
       {/* Context Menu */}
