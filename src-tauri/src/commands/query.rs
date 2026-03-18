@@ -543,6 +543,7 @@ pub async fn update_row(
 fn add_value_to_args(args: &mut sqlx::postgres::PgArguments, value: &serde_json::Value) {
     use chrono::NaiveDateTime;
     use sqlx::Arguments;
+    use uuid::Uuid;
     match value {
         serde_json::Value::Null => args.add(None::<String>),
         serde_json::Value::Bool(b) => args.add(*b),
@@ -556,13 +557,16 @@ fn add_value_to_args(args: &mut sqlx::postgres::PgArguments, value: &serde_json:
             }
         }
         serde_json::Value::String(s) => {
-            // Try to parse as timestamp (format: "2025-12-10 07:48:17.276")
-            if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f") {
+            // Try UUID first (exact 36-char format)
+            if let Ok(u) = Uuid::parse_str(s) {
+                args.add(u)
+            // Try timestamp formats
+            } else if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f") {
                 args.add(dt)
             } else if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
                 args.add(dt)
             } else {
-                // Regular string
+                // Covers text, varchar, ENUM, and other string-compatible types.
                 args.add(s.clone())
             }
         }

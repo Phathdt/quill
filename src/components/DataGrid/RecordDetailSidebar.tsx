@@ -7,6 +7,11 @@ import { cn } from '@/lib/utils'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { Check, ChevronDown, ChevronUp, Copy, X } from 'lucide-react'
 
+function isJsonType(typeName: string): boolean {
+  const t = typeName.toLowerCase()
+  return t === 'json' || t === 'jsonb'
+}
+
 export function RecordDetailSidebar() {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
@@ -35,7 +40,14 @@ export function RecordDetailSidebar() {
     if (!rowData || columns.length === 0) return {}
     const values: Record<string, string> = {}
     columns.forEach((col, idx) => {
-      values[col.name] = rowData[idx] === null ? '' : String(rowData[idx])
+      const val = rowData[idx]
+      if (val === null) {
+        values[col.name] = ''
+      } else if (typeof val === 'object') {
+        values[col.name] = JSON.stringify(val, null, 2)
+      } else {
+        values[col.name] = String(val)
+      }
     })
     return values
   }, [rowData, columns])
@@ -142,6 +154,22 @@ export function RecordDetailSidebar() {
 
                 {isNull ? (
                   <div className='px-3 py-2 text-sm text-muted-foreground/50 italic bg-muted/30 rounded-md'>NULL</div>
+                ) : isJsonType(col.typeName) ? (
+                  <textarea
+                    value={value}
+                    onChange={(e) =>
+                      setEditValues((v) => ({
+                        ...v,
+                        [col.name]: e.target.value,
+                      }))
+                    }
+                    className={cn(
+                      'w-full px-3 py-2 text-sm font-mono rounded-md border border-input bg-background resize-y min-h-[80px]',
+                      activeTab?.type === 'query' && 'bg-muted cursor-default'
+                    )}
+                    readOnly={activeTab?.type === 'query'}
+                    rows={Math.min(value.split('\n').length, 10)}
+                  />
                 ) : (
                   <Input
                     value={value}

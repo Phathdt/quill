@@ -144,6 +144,8 @@ fn extract_sqlite_value(row: &sqlx::sqlite::SqliteRow, i: usize) -> serde_json::
 pub fn extract_postgres_value(row: &sqlx::postgres::PgRow, i: usize) -> serde_json::Value {
     use base64::{engine::general_purpose, Engine as _};
     use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    use rust_decimal::Decimal;
+    use uuid::Uuid;
 
     match row.try_get_raw(i) {
         Ok(raw_value) => {
@@ -170,6 +172,14 @@ pub fn extract_postgres_value(row: &sqlx::postgres::PgRow, i: usize) -> serde_js
             if let Ok(v) = row.try_get::<f64, _>(i) {
                 return serde_json::json!(v);
             }
+            // Handle NUMERIC/DECIMAL type (preserves precision, avoids float rounding)
+            if let Ok(v) = row.try_get::<Decimal, _>(i) {
+                return serde_json::json!(v.to_string());
+            }
+            // Handle UUID type (must come before String to avoid binary decode failure)
+            if let Ok(v) = row.try_get::<Uuid, _>(i) {
+                return serde_json::json!(v.to_string());
+            }
             if let Ok(v) = row.try_get::<String, _>(i) {
                 return serde_json::json!(v);
             }
@@ -193,7 +203,15 @@ pub fn extract_postgres_value(row: &sqlx::postgres::PgRow, i: usize) -> serde_js
             if let Ok(v) = row.try_get::<Vec<u8>, _>(i) {
                 return serde_json::json!(general_purpose::STANDARD.encode(v));
             }
-            // Fallback: try to get as string representation
+            // Fallback for custom types (ENUMs, etc.): decode raw bytes as UTF-8
+            if let Ok(raw) = row.try_get_raw(i) {
+                use sqlx::ValueRef;
+                if let Ok(bytes) = <&[u8] as sqlx::Decode<sqlx::Postgres>>::decode(raw) {
+                    if let Ok(s) = std::str::from_utf8(bytes) {
+                        return serde_json::json!(s);
+                    }
+                }
+            }
             serde_json::Value::Null
         }
         Err(_) => serde_json::Value::Null,

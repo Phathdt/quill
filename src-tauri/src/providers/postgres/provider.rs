@@ -4,6 +4,7 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use serde_json::Value;
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgSslMode};
 use sqlx::{Arguments, Column as SqlxColumn, Row, TypeInfo, ValueRef};
+use rust_decimal::Decimal;
 use uuid::Uuid;
 use std::str::FromStr;
 use std::time::Instant;
@@ -94,6 +95,10 @@ impl PostgresProvider {
                 if let Ok(v) = row.try_get::<f64, _>(i) {
                     return serde_json::json!(v);
                 }
+                // Handle NUMERIC/DECIMAL type (preserves precision, avoids float rounding)
+                if let Ok(v) = row.try_get::<Decimal, _>(i) {
+                    return serde_json::json!(v.to_string());
+                }
                 // Handle UUID type (must come before String to avoid binary decode failure)
                 if let Ok(v) = row.try_get::<Uuid, _>(i) {
                     return serde_json::json!(v.to_string());
@@ -120,6 +125,14 @@ impl PostgresProvider {
                 }
                 if let Ok(v) = row.try_get::<Vec<u8>, _>(i) {
                     return serde_json::json!(general_purpose::STANDARD.encode(v));
+                }
+                // Fallback for custom types (ENUMs, etc.): decode raw bytes as UTF-8
+                if let Ok(raw) = row.try_get_raw(i) {
+                    if let Ok(bytes) = <&[u8] as sqlx::Decode<sqlx::Postgres>>::decode(raw) {
+                        if let Ok(s) = std::str::from_utf8(bytes) {
+                            return serde_json::json!(s);
+                        }
+                    }
                 }
                 Value::Null
             }
