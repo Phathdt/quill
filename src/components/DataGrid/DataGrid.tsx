@@ -410,7 +410,7 @@ export function DataGrid() {
 
       {/* Structure view */}
       {activeView === 'structure' && isTableMode && activeWorkspace && activeTab?.tableName ? (
-        <StructureView workspaceId={activeWorkspace.id} tableName={activeTab.tableName} />
+        <StructureView workspaceId={activeWorkspace.id} tableName={activeTab.tableName} dbType={activeWorkspace.dbType} />
       ) : null}
 
       {/* Main scroll area - takes remaining height via grid 1fr */}
