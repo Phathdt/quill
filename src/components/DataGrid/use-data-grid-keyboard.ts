@@ -84,6 +84,9 @@ export function useDataGridKeyboard({
   activeWorkspace,
   activeTab,
 }: UseDataGridKeyboardProps) {
+  // Anchor row for Shift+Arrow range selection
+  const selectionAnchorRef = useRef<number | null>(null)
+
   // Debounced sidebar navigation — fires 120ms after last arrow key
   const navigateTimerRef = useRef<NodeJS.Timeout | null>(null)
   const debouncedRowNavigate = useCallback(
@@ -291,9 +294,19 @@ export function useDataGridKeyboard({
               e.preventDefault()
               const newRow = focusedCell.row - 1
               setFocusedCell({ row: newRow, col: focusedCell.col })
-              setSelectedRowIndex(newRow)
-              setSelectedRows(new Set([newRow]))
-              debouncedRowNavigate(newRow)
+              if (e.shiftKey) {
+                // Extend range from anchor to newRow
+                if (selectionAnchorRef.current === null) selectionAnchorRef.current = focusedCell.row
+                const anchor = selectionAnchorRef.current
+                const range = new Set<number>()
+                for (let i = Math.min(anchor, newRow); i <= Math.max(anchor, newRow); i++) range.add(i)
+                setSelectedRows(range)
+              } else {
+                selectionAnchorRef.current = newRow
+                setSelectedRowIndex(newRow)
+                setSelectedRows(new Set([newRow]))
+                debouncedRowNavigate(newRow)
+              }
             }
             break
           case 'ArrowDown':
@@ -301,9 +314,19 @@ export function useDataGridKeyboard({
               e.preventDefault()
               const newRow = focusedCell.row + 1
               setFocusedCell({ row: newRow, col: focusedCell.col })
-              setSelectedRowIndex(newRow)
-              setSelectedRows(new Set([newRow]))
-              debouncedRowNavigate(newRow)
+              if (e.shiftKey) {
+                // Extend range from anchor to newRow
+                if (selectionAnchorRef.current === null) selectionAnchorRef.current = focusedCell.row
+                const anchor = selectionAnchorRef.current
+                const range = new Set<number>()
+                for (let i = Math.min(anchor, newRow); i <= Math.max(anchor, newRow); i++) range.add(i)
+                setSelectedRows(range)
+              } else {
+                selectionAnchorRef.current = newRow
+                setSelectedRowIndex(newRow)
+                setSelectedRows(new Set([newRow]))
+                debouncedRowNavigate(newRow)
+              }
             }
             break
           case 'ArrowLeft':
