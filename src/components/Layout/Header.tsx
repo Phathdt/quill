@@ -1,11 +1,12 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { useInlineEditing } from '@/hooks/useInlineEditing'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '@/stores/uiStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { DB_COLORS } from '@/types/workspace'
-import { ChevronLeft, PanelBottom, PanelLeft, PanelRight } from 'lucide-react'
+import { ChevronLeft, Eye, PanelBottom, PanelLeft, PanelRight, RotateCcw, Save } from 'lucide-react'
 
 interface HeaderProps {
   onDisconnect?: () => void
@@ -25,6 +26,9 @@ export function Header({ onDisconnect }: HeaderProps) {
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
   const sqlBarOpen = useUiStore((s) => s.sqlBarOpen)
   const toggleSqlBar = useUiStore((s) => s.toggleSqlBar)
+  const setSqlPreviewOpen = useUiStore((s) => s.setSqlPreviewOpen)
+
+  const { hasPendingChanges, savePendingChanges, discardPendingChanges } = useInlineEditing()
   const setSidebarOpen = useWorkspaceManagerStore((s) => s.setSidebarOpen)
   const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
 
@@ -107,6 +111,39 @@ export function Header({ onDisconnect }: HeaderProps) {
           />
           {isConnected ? 'Connected' : 'Disconnected'}
         </Badge>
+        {/* Pending changes actions — only visible when edits exist */}
+        {hasPendingChanges && (
+          <>
+            <Button
+              size='icon'
+              variant='ghost'
+              className='h-7 w-7 text-muted-foreground hover:text-destructive'
+              onClick={discardPendingChanges}
+              title='Discard all changes'
+            >
+              <RotateCcw className='h-3.5 w-3.5' />
+            </Button>
+            <Button
+              size='icon'
+              variant='ghost'
+              className='h-7 w-7 text-muted-foreground hover:text-foreground'
+              onClick={() => setSqlPreviewOpen(true)}
+              title='Preview SQL'
+            >
+              <Eye className='h-3.5 w-3.5' />
+            </Button>
+            <Button
+              size='icon'
+              variant='ghost'
+              className='h-7 w-7 text-amber-400 hover:text-amber-300'
+              onClick={savePendingChanges}
+              title='Apply changes (Cmd+S)'
+            >
+              <Save className='h-3.5 w-3.5' />
+            </Button>
+            <div className='w-px h-4 bg-border' />
+          </>
+        )}
         <Button
           size='icon'
           variant={leftPanelOpen ? 'secondary' : 'ghost'}

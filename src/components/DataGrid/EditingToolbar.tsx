@@ -1,17 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import Editor from '@monaco-editor/react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from '@/lib/toast'
+import { useUiStore } from '@/stores/uiStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { CellEdit, PendingNewRow } from '@/types/editing'
-import { Check, Code, Copy, X } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
 
 interface EditingToolbarProps {
   onSave: () => void
-  onDiscard: () => void
 }
 
 interface TableChange {
@@ -25,10 +25,11 @@ interface TableChange {
   rows: unknown[][]
 }
 
-export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
+export function EditingToolbar({ onSave }: EditingToolbarProps) {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const workspaceTabs = activeWorkspace?.tabs
-  const [showSqlPreview, setShowSqlPreview] = useState(false)
+  const showSqlPreview = useUiStore((s) => s.sqlPreviewOpen)
+  const setShowSqlPreview = useUiStore((s) => s.setSqlPreviewOpen)
 
   // Collect all pending changes and new rows from all table tabs in the workspace
   const allTableChanges = useMemo((): TableChange[] => {
@@ -168,35 +169,6 @@ export function EditingToolbar({ onSave, onDiscard }: EditingToolbarProps) {
           )}
           {affectedTables.length === 1 && <span className='text-muted-foreground ml-1'>in {affectedTables[0]}</span>}
         </span>
-        <div className='flex-1' />
-
-        {/* Clear button */}
-        <Button
-          size='sm'
-          variant='ghost'
-          onClick={onDiscard}
-          className='h-6 text-xs text-muted-foreground hover:text-foreground'
-        >
-          <X className='h-3 w-3 mr-1' />
-          Clear
-        </Button>
-
-        {/* View SQL button */}
-        <Button
-          size='sm'
-          variant='ghost'
-          onClick={() => setShowSqlPreview(true)}
-          className='h-6 text-xs text-muted-foreground hover:text-foreground'
-        >
-          <Code className='h-3 w-3 mr-1' />
-          View SQL
-        </Button>
-
-        {/* Apply button */}
-        <Button size='sm' onClick={onSave} className='h-6 text-xs bg-amber-500 hover:bg-amber-600 text-black'>
-          <Check className='h-3 w-3 mr-1' />
-          Apply (Cmd+S)
-        </Button>
       </div>
 
       {/* SQL Preview Dialog */}

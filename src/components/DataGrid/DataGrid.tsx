@@ -83,8 +83,7 @@ export function DataGrid() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Inline editing hook
-  const { editingState, startEditing, commitCellEdit, cancelEditing, savePendingChanges, discardPendingChanges } =
-    useInlineEditing()
+  const { editingState, startEditing, commitCellEdit, cancelEditing, savePendingChanges } = useInlineEditing()
 
   // Handle sorting changes - for table tabs, use server-side sorting
   const handleSortingChange = useCallback(
@@ -424,7 +423,7 @@ export function DataGrid() {
 
   return (
     <div className='grid grid-rows-[auto_1fr_auto] h-full overflow-hidden bg-background'>
-      <EditingToolbar onSave={savePendingChanges} onDiscard={discardPendingChanges} />
+      <EditingToolbar onSave={savePendingChanges} />
 
       {/* Main scroll area - takes remaining height via grid 1fr */}
       <div ref={parentRef} className='data-grid-scroll min-h-0'>

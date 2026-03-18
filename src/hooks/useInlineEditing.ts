@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 
 import { deleteRows, getPrimaryKey, insertRow, updateRow } from '@/lib/tauri'
 import { toast } from '@/lib/toast'
@@ -331,9 +331,21 @@ export function useInlineEditing() {
     }
   }, [workspaceId, workspaceTabs, clearPendingChanges, clearPendingNewRows, clearPendingDeletes])
 
+  const hasPendingChanges = useMemo(() => {
+    if (!workspaceTabs) return false
+    return Object.values(workspaceTabs).some((tab) => {
+      if (tab.type !== 'table') return false
+      const changes = tab.editingState?.pendingChanges ?? {}
+      const newRows = tab.editingState?.pendingNewRows ?? []
+      const deletes = tab.editingState?.pendingDeletes ?? []
+      return Object.keys(changes).length > 0 || newRows.length > 0 || deletes.length > 0
+    })
+  }, [workspaceTabs])
+
   return {
     isTableMode,
     editingState,
+    hasPendingChanges,
     startEditing,
     commitCellEdit,
     cancelEditing,

@@ -6,6 +6,8 @@ interface UiState {
   setLeftPanelOpen: (open: boolean) => void
   sqlBarOpen: boolean
   toggleSqlBar: () => void
+  sqlPreviewOpen: boolean
+  setSqlPreviewOpen: (open: boolean) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -14,4 +16,6 @@ export const useUiStore = create<UiState>((set) => ({
   setLeftPanelOpen: (open) => set({ leftPanelOpen: open }),
   sqlBarOpen: false,
   toggleSqlBar: () => set((s) => ({ sqlBarOpen: !s.sqlBarOpen })),
+  sqlPreviewOpen: false,
+  setSqlPreviewOpen: (open) => set({ sqlPreviewOpen: open }),
 }))
