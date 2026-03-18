@@ -1,4 +1,4 @@
-import { createDir, exists, readTextFile, writeTextFile } from '@tauri-apps/api/fs'
+import { exists, mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 import { appDataDir, join } from '@tauri-apps/api/path'
 
 import { STORAGE_DATA_DIR, STORAGE_HISTORY_DIR } from './const'
@@ -17,7 +17,7 @@ async function getDataPath(...segments: string[]): Promise<string> {
 async function ensureDir(path: string): Promise<void> {
   const dirExists = await exists(path)
   if (!dirExists) {
-    await createDir(path, { recursive: true })
+    await mkdir(path, { recursive: true })
   }
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { listen } from '@tauri-apps/api/event'
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -56,7 +56,7 @@ export function ImportDialog({ isOpen, onClose, tableName, tableColumns, workspa
 
   const handleSelectFile = async () => {
     try {
-      const { open } = await import('@tauri-apps/api/dialog')
+      const { open } = await import('@tauri-apps/plugin-dialog')
       const selected = await open({
         filters: [
           { name: 'Data Files', extensions: ['csv', 'json'] },

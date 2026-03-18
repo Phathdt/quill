@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 
 import type { SslConfig } from '@/types/connection'
 import type { QueryResult } from '@/types/database'

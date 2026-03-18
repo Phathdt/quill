@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

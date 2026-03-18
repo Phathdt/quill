@@ -1,6 +1,7 @@
 use crate::db::connection::{DbPool, MultiDbState};
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 
 #[derive(Debug, Serialize)]
 pub struct ImportPreview {

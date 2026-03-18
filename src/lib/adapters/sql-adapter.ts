@@ -4,7 +4,7 @@
  * Adapter for SQL databases (PostgreSQL, SQLite, MySQL) using the new provider API.
  */
 
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 
 import type { ProviderType, QueryResult } from '@/types/provider-result'
 
