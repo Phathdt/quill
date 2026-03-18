@@ -1,12 +1,92 @@
 import { useEffect, useState } from 'react'
 
 import { getTableStructure } from '@/lib/tauri'
-import type { TableStructure } from '@/types/schema'
+import type { TableColumn, TableIndex, TableStructure } from '@/types/schema'
 import { AlertCircle, Loader2 } from 'lucide-react'
 
 interface StructureViewProps {
   workspaceId: string
   tableName: string
+}
+
+// Reusable mini-datagrid header cell
+function GridTh({ children, width }: { children: React.ReactNode; width?: string }) {
+  return (
+    <div
+      className='flex items-center px-3 h-8 text-xs font-semibold text-muted-foreground border-r border-border bg-card shrink-0 select-none'
+      style={{ width: width ?? 150, minWidth: width ?? 150 }}
+    >
+      {children}
+    </div>
+  )
+}
+
+// Reusable mini-datagrid data cell
+function GridTd({ children, width, mono }: { children: React.ReactNode; width?: string; mono?: boolean }) {
+  return (
+    <div
+      className={`flex items-center px-3 h-8 text-xs border-r border-border shrink-0 truncate ${mono ? 'font-mono' : ''}`}
+      style={{ width: width ?? 150, minWidth: width ?? 150 }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function ColumnsGrid({ columns }: { columns: TableColumn[] }) {
+  return (
+    <div className='flex flex-col border border-border rounded-sm overflow-hidden'>
+      {/* Header */}
+      <div className='flex border-b border-border bg-card sticky top-0 z-10'>
+        <GridTh width='40px'>#</GridTh>
+        <GridTh width='200px'>column_name</GridTh>
+        <GridTh width='180px'>data_type</GridTh>
+        <GridTh width='100px'>is_nullable</GridTh>
+        <GridTh width='260px'>column_default</GridTh>
+        <GridTh width='100px'>primary_key</GridTh>
+      </div>
+      {/* Rows */}
+      {columns.map((col, i) => (
+        <div key={col.name} className={`flex border-b border-border ${i % 2 === 0 ? 'bg-card' : 'bg-muted/30'}`}>
+          <GridTd width='40px'><span className='text-muted-foreground'>{i + 1}</span></GridTd>
+          <GridTd width='200px' mono><span className='font-medium text-foreground'>{col.name}</span></GridTd>
+          <GridTd width='180px' mono><span className='text-muted-foreground'>{col.dataType}</span></GridTd>
+          <GridTd width='100px'><span className='text-muted-foreground'>{col.nullable ? 'YES' : 'NO'}</span></GridTd>
+          <GridTd width='260px' mono><span className='text-muted-foreground truncate'>{col.defaultValue ?? 'NULL'}</span></GridTd>
+          <GridTd width='100px'><span className={col.isPrimaryKey ? 'text-amber-400 font-semibold' : 'text-muted-foreground'}>{col.isPrimaryKey ? 'YES' : 'NO'}</span></GridTd>
+        </div>
+      ))}
+      {columns.length === 0 && (
+        <div className='px-3 py-4 text-xs text-muted-foreground'>No columns</div>
+      )}
+    </div>
+  )
+}
+
+function IndexesGrid({ indexes }: { indexes: TableIndex[] }) {
+  if (indexes.length === 0) return null
+  return (
+    <div className='flex flex-col border border-border rounded-sm overflow-hidden'>
+      {/* Header */}
+      <div className='flex border-b border-border bg-card sticky top-0 z-10'>
+        <GridTh width='280px'>index_name</GridTh>
+        <GridTh width='120px'>index_algorithm</GridTh>
+        <GridTh width='90px'>is_unique</GridTh>
+        <GridTh width='220px'>column_name</GridTh>
+        <GridTh width='100px'>is_primary</GridTh>
+      </div>
+      {/* Rows */}
+      {indexes.map((idx, i) => (
+        <div key={idx.name} className={`flex border-b border-border ${i % 2 === 0 ? 'bg-card' : 'bg-muted/30'}`}>
+          <GridTd width='280px' mono><span className='text-foreground'>{idx.name}</span></GridTd>
+          <GridTd width='120px'><span className='uppercase text-muted-foreground'>{idx.indexType}</span></GridTd>
+          <GridTd width='90px'><span className={idx.isUnique ? 'text-emerald-400' : 'text-muted-foreground'}>{idx.isUnique ? 'TRUE' : 'FALSE'}</span></GridTd>
+          <GridTd width='220px' mono><span className='text-muted-foreground'>{idx.columns.join(', ')}</span></GridTd>
+          <GridTd width='100px'><span className={idx.isPrimary ? 'text-amber-400 font-semibold' : 'text-muted-foreground'}>{idx.isPrimary ? 'YES' : 'NO'}</span></GridTd>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export function StructureView({ workspaceId, tableName }: StructureViewProps) {
@@ -55,55 +135,27 @@ export function StructureView({ workspaceId, tableName }: StructureViewProps) {
   if (!structure) return null
 
   return (
-    <div className='flex-1 overflow-auto bg-background'>
-      {/* Columns */}
-      <table className='w-full text-xs border-collapse'>
-        <thead>
-          <tr className='bg-muted/60 border-b border-border sticky top-0'>
-            <th className='px-3 py-2 text-left text-muted-foreground font-medium w-8'>#</th>
-            <th className='px-3 py-2 text-left text-muted-foreground font-medium'>column_name</th>
-            <th className='px-3 py-2 text-left text-muted-foreground font-medium'>data_type</th>
-            <th className='px-3 py-2 text-left text-muted-foreground font-medium'>is_nullable</th>
-            <th className='px-3 py-2 text-left text-muted-foreground font-medium'>column_default</th>
-            <th className='px-3 py-2 text-left text-muted-foreground font-medium'>primary_key</th>
-          </tr>
-        </thead>
-        <tbody>
-          {structure.columns.map((col, i) => (
-            <tr key={col.name} className='border-b border-border'>
-              <td className='px-3 py-1.5 text-muted-foreground'>{i + 1}</td>
-              <td className='px-3 py-1.5 font-mono font-medium text-foreground'>{col.name}</td>
-              <td className='px-3 py-1.5 font-mono text-muted-foreground'>{col.dataType}</td>
-              <td className='px-3 py-1.5 text-muted-foreground'>{col.nullable ? 'YES' : 'NO'}</td>
-              <td className='px-3 py-1.5 font-mono text-muted-foreground'>{col.defaultValue ?? 'NULL'}</td>
-              <td className='px-3 py-1.5 text-muted-foreground'>{col.isPrimaryKey ? '✓' : ''}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className='flex-1 overflow-auto bg-background p-3 flex flex-col gap-4'>
+      {/* Columns section */}
+      <div className='flex flex-col gap-1.5'>
+        <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wide px-0.5'>
+          Columns ({structure.columns.length})
+        </p>
+        <div className='overflow-x-auto'>
+          <ColumnsGrid columns={structure.columns} />
+        </div>
+      </div>
 
-      {/* Indexes */}
+      {/* Indexes section */}
       {structure.indexes.length > 0 && (
-        <table className='w-full text-xs border-collapse'>
-          <thead>
-            <tr className='bg-muted/60 border-b border-t-2 border-border sticky top-0'>
-              <th className='px-3 py-2 text-left text-muted-foreground font-medium'>index_name</th>
-              <th className='px-3 py-2 text-left text-muted-foreground font-medium'>index_algorithm</th>
-              <th className='px-3 py-2 text-left text-muted-foreground font-medium'>is_unique</th>
-              <th className='px-3 py-2 text-left text-muted-foreground font-medium'>column_name</th>
-            </tr>
-          </thead>
-          <tbody>
-            {structure.indexes.map((idx) => (
-              <tr key={idx.name} className='border-b border-border'>
-                <td className='px-3 py-1.5 font-mono text-foreground'>{idx.name}</td>
-                <td className='px-3 py-1.5 uppercase text-muted-foreground'>{idx.indexType}</td>
-                <td className='px-3 py-1.5 text-muted-foreground'>{idx.isUnique ? 'TRUE' : 'FALSE'}</td>
-                <td className='px-3 py-1.5 font-mono text-muted-foreground'>{idx.columns.join(', ')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className='flex flex-col gap-1.5'>
+          <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wide px-0.5'>
+            Indexes ({structure.indexes.length})
+          </p>
+          <div className='overflow-x-auto'>
+            <IndexesGrid indexes={structure.indexes} />
+          </div>
+        </div>
       )}
     </div>
   )
