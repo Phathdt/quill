@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { formatSql } from '@/lib/sql-formatter'
+import { useTableFinderStore } from '@/stores/tableFinderStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -9,6 +10,7 @@ export function useGlobalShortcuts() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
+  const toggleTableFinder = useTableFinderStore((s) => s.toggle)
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const createTab = useWorkspaceManagerStore((s) => s.createTab)
   const closeTab = useWorkspaceManagerStore((s) => s.closeTab)
@@ -16,6 +18,18 @@ export function useGlobalShortcuts() {
   const setSidebarOpen = useWorkspaceManagerStore((s) => s.setSidebarOpen)
   const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
+
+  // Cmd/Ctrl+P: Open table finder (only when connected)
+  useHotkeys(
+    'meta+p, ctrl+p',
+    (e) => {
+      e.preventDefault()
+      if (activeWorkspace?.isConnected) {
+        toggleTableFinder()
+      }
+    },
+    { enableOnFormTags: true }
+  )
 
   // Cmd/Ctrl+T: Create new tab
   useHotkeys(

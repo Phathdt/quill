@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 
 import { CommandPalette } from '@/components/CommandPalette/CommandPalette'
+import { TableFinderModal } from '@/components/TableFinder/TableFinderModal'
 import { KeyboardShortcutsOverlay } from '@/components/Layout/KeyboardShortcutsOverlay'
 import { SaveQueryDialog } from '@/components/SavedQueries/SaveQueryDialog'
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
@@ -74,6 +75,9 @@ function AppContent() {
 
       {/* Global Command Palette */}
       <CommandPalette />
+
+      {/* Table Finder (Cmd+P) */}
+      <TableFinderModal />
 
       {/* Keyboard Shortcuts Overlay */}
       <KeyboardShortcutsOverlay open={shortcutsOpen} onOpenChange={setShortcutsOpen} />

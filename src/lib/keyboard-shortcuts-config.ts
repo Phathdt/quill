@@ -34,6 +34,13 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     category: 'general',
   },
   {
+    id: 'go-to-table',
+    keys: 'Cmd+P',
+    keysCtrl: 'Ctrl+P',
+    description: 'Go to table',
+    category: 'general',
+  },
+  {
     id: 'escape',
     keys: 'Esc',
     description: 'Cancel editing / Close modal',
