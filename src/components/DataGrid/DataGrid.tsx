@@ -26,6 +26,7 @@ import { DataGridHeader } from './data-grid-header'
 import { EditingToolbar } from './EditingToolbar'
 import { GridToolbar } from './GridToolbar'
 import { NewRowForm } from './NewRowForm'
+import { StructureView } from './StructureView'
 import { useDataGridKeyboard } from './use-data-grid-keyboard'
 import { useDataGridSelection } from './use-data-grid-selection'
 import { VirtualRow } from './virtual-row'
@@ -76,6 +77,9 @@ export function DataGrid() {
     cellValue: string | number | boolean | null
     rowData: RowData
   } | null>(null)
+
+  // View toggle: data vs structure
+  const [activeView, setActiveView] = useState<'data' | 'structure'>('data')
 
   // Row management dialogs
   const [showNewRowForm, setShowNewRowForm] = useState(false)
@@ -404,8 +408,13 @@ export function DataGrid() {
     <div className='grid grid-rows-[auto_1fr_auto] h-full overflow-hidden bg-background'>
       <EditingToolbar onSave={savePendingChanges} />
 
+      {/* Structure view */}
+      {activeView === 'structure' && isTableMode && activeWorkspace && activeTab?.tableName ? (
+        <StructureView workspaceId={activeWorkspace.id} tableName={activeTab.tableName} />
+      ) : null}
+
       {/* Main scroll area - takes remaining height via grid 1fr */}
-      <div ref={parentRef} className='data-grid-scroll min-h-0'>
+      <div ref={parentRef} className={`data-grid-scroll min-h-0 ${activeView === 'structure' ? 'hidden' : ''}`}>
         <div style={{ width: totalWidth, minWidth: totalWidth }}>
           <DataGridHeader headerGroups={headerGroups} table={table} />
 
@@ -454,6 +463,8 @@ export function DataGrid() {
         onAddRow={isTableMode ? () => setShowNewRowForm(true) : undefined}
         onDeleteSelected={isTableMode ? handleDeleteSelected : undefined}
         selectedRowCount={selectedRows.size}
+        activeView={activeView}
+        onViewChange={isTableMode ? setActiveView : undefined}
       />
 
       {/* Context Menu */}

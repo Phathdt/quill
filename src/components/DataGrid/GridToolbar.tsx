@@ -22,6 +22,8 @@ interface GridToolbarProps {
   onAddRow?: () => void
   onDeleteSelected?: () => void
   selectedRowCount?: number
+  activeView?: 'data' | 'structure'
+  onViewChange?: (view: 'data' | 'structure') => void
 }
 
 export function GridToolbar({
@@ -34,6 +36,8 @@ export function GridToolbar({
   onAddRow,
   onDeleteSelected,
   selectedRowCount = 0,
+  activeView = 'data',
+  onViewChange,
 }: GridToolbarProps) {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
@@ -83,11 +87,21 @@ export function GridToolbar({
         {isTableMode ? (
           <>
             {/* Data / Structure tabs */}
-            <Button size='sm' variant='secondary' className='h-6 px-2.5 text-xs rounded-sm gap-1.5'>
+            <Button
+              size='sm'
+              variant={activeView === 'data' ? 'secondary' : 'ghost'}
+              className='h-6 px-2.5 text-xs rounded-sm gap-1.5'
+              onClick={() => onViewChange?.('data')}
+            >
               <LayoutGrid className='h-3 w-3' />
               Data
             </Button>
-            <Button size='sm' variant='ghost' className='h-6 px-2.5 text-xs rounded-sm gap-1.5 text-muted-foreground'>
+            <Button
+              size='sm'
+              variant={activeView === 'structure' ? 'secondary' : 'ghost'}
+              className='h-6 px-2.5 text-xs rounded-sm gap-1.5 text-muted-foreground'
+              onClick={() => onViewChange?.('structure')}
+            >
               <Table2 className='h-3 w-3' />
               Structure
             </Button>
