@@ -17,9 +17,9 @@ export function useGlobalShortcuts() {
   const setSidebarRowIndex = useWorkspaceManagerStore((s) => s.setSidebarRowIndex)
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
 
-  // Cmd+T: Create new tab
+  // Cmd/Ctrl+T: Create new tab
   useHotkeys(
-    'meta+t',
+    'meta+t, ctrl+t',
     (e) => {
       e.preventDefault()
       if (activeWorkspace) {
@@ -29,9 +29,9 @@ export function useGlobalShortcuts() {
     { enableOnFormTags: true }
   )
 
-  // Cmd+W: Close current tab (prevent if only 1 tab)
+  // Cmd/Ctrl+W: Close current tab (prevent if only 1 tab)
   useHotkeys(
-    'meta+w',
+    'meta+w, ctrl+w',
     (e) => {
       e.preventDefault()
       if (activeWorkspace && activeTab && activeWorkspace.tabOrder.length > 1) {
@@ -41,9 +41,9 @@ export function useGlobalShortcuts() {
     { enableOnFormTags: true }
   )
 
-  // Cmd+B: Toggle left panel
+  // Cmd/Ctrl+B: Toggle left panel
   useHotkeys(
-    'meta+b',
+    'meta+b, ctrl+b',
     (e) => {
       e.preventDefault()
       toggleLeftPanel()
@@ -51,9 +51,9 @@ export function useGlobalShortcuts() {
     { enableOnFormTags: true }
   )
 
-  // Cmd+Shift+F: Format SQL
+  // Cmd/Ctrl+Shift+F: Format SQL
   useHotkeys(
-    'meta+shift+f',
+    'meta+shift+f, ctrl+shift+f',
     (e) => {
       e.preventDefault()
       if (activeWorkspace && activeTab?.sql) {
@@ -66,9 +66,9 @@ export function useGlobalShortcuts() {
     { enableOnFormTags: true }
   )
 
-  // Cmd+D: Toggle record detail sidebar
+  // Cmd/Ctrl+D: Toggle record detail sidebar
   useHotkeys(
-    'meta+d',
+    'meta+d, ctrl+d',
     (e) => {
       e.preventDefault()
       if (activeWorkspace && activeTab && activeTab.result?.rows.length) {
@@ -97,9 +97,9 @@ export function useGlobalShortcuts() {
     { enableOnFormTags: false, enableOnContentEditable: false }
   )
 
-  // Cmd+Shift+S: Save query
+  // Cmd/Ctrl+Shift+S: Save query
   useHotkeys(
-    'meta+shift+s',
+    'meta+shift+s, ctrl+shift+s',
     (e) => {
       e.preventDefault()
       if (activeTab?.sql?.trim()) {

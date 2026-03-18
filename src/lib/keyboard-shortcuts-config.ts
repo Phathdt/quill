@@ -1,9 +1,21 @@
 export interface KeyboardShortcut {
   id: string
-  keys: string
-  keysWindows?: string // Override for Windows
+  keys: string       // macOS display (Cmd+...)
+  keysCtrl?: string  // Linux/Windows display (Ctrl+...)
   description: string
   category: 'editor' | 'navigation' | 'grid' | 'general'
+}
+
+/** Detect platform: 'mac' | 'other' (Linux, Windows) */
+export function isMac(): boolean {
+  // userAgentData is the modern API, navigator.platform is deprecated but more widely supported
+  if (typeof navigator !== 'undefined') {
+    if ('userAgentData' in navigator) {
+      return (navigator as Navigator & { userAgentData: { platform: string } }).userAgentData.platform === 'macOS'
+    }
+    return navigator.platform.toUpperCase().includes('MAC')
+  }
+  return false
 }
 
 export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
@@ -17,7 +29,7 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   {
     id: 'command-palette',
     keys: 'Cmd+K',
-    keysWindows: 'Ctrl+K',
+    keysCtrl: 'Ctrl+K',
     description: 'Open command palette',
     category: 'general',
   },
@@ -31,21 +43,21 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   {
     id: 'execute-query',
     keys: 'Cmd+Enter',
-    keysWindows: 'Ctrl+Enter',
+    keysCtrl: 'Ctrl+Enter',
     description: 'Execute query',
     category: 'editor',
   },
   {
     id: 'format-sql',
     keys: 'Cmd+Shift+F',
-    keysWindows: 'Ctrl+Shift+F',
+    keysCtrl: 'Ctrl+Shift+F',
     description: 'Format SQL',
     category: 'editor',
   },
   {
     id: 'save-query',
     keys: 'Cmd+Shift+S',
-    keysWindows: 'Ctrl+Shift+S',
+    keysCtrl: 'Ctrl+Shift+S',
     description: 'Save query',
     category: 'editor',
   },
@@ -53,21 +65,21 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   {
     id: 'new-tab',
     keys: 'Cmd+T',
-    keysWindows: 'Ctrl+T',
+    keysCtrl: 'Ctrl+T',
     description: 'New query tab',
     category: 'navigation',
   },
   {
     id: 'close-tab',
     keys: 'Cmd+W',
-    keysWindows: 'Ctrl+W',
+    keysCtrl: 'Ctrl+W',
     description: 'Close current tab',
     category: 'navigation',
   },
   {
     id: 'toggle-sidebar',
     keys: 'Cmd+B',
-    keysWindows: 'Ctrl+B',
+    keysCtrl: 'Ctrl+B',
     description: 'Toggle sidebar',
     category: 'navigation',
   },
@@ -75,14 +87,14 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   {
     id: 'record-detail',
     keys: 'Cmd+D',
-    keysWindows: 'Ctrl+D',
+    keysCtrl: 'Ctrl+D',
     description: 'Toggle record detail',
     category: 'grid',
   },
   {
     id: 'copy-cell',
     keys: 'Cmd+C',
-    keysWindows: 'Ctrl+C',
+    keysCtrl: 'Ctrl+C',
     description: 'Copy cell value',
     category: 'grid',
   },
@@ -109,6 +121,5 @@ export function getShortcutsByCategory(): Record<string, KeyboardShortcut[]> {
 }
 
 export function getDisplayKeys(shortcut: KeyboardShortcut): string {
-  const isMac = navigator.platform.toUpperCase().includes('MAC')
-  return isMac ? shortcut.keys : (shortcut.keysWindows ?? shortcut.keys)
+  return isMac() ? shortcut.keys : (shortcut.keysCtrl ?? shortcut.keys)
 }
