@@ -62,7 +62,7 @@ export function VirtualRow({
 
   // Determine row background
   const getRowClassName = () => {
-    const base = 'flex border-b border-border hover:bg-accent/50 transition-colors absolute left-0 cursor-pointer'
+    const base = 'flex border-b border-border transition-colors absolute left-0 cursor-pointer'
 
     if (isPendingDelete) {
       return `${base} bg-red-500/20 border-l-2 border-l-red-500`
