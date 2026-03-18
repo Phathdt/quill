@@ -147,30 +147,9 @@ export function EditingToolbar({ onSave }: EditingToolbarProps) {
   }
 
   const sqlStatements = generateSqlStatements()
-  const affectedTables = [...new Set(allTableChanges.map((tc) => tc.tableName))]
 
   return (
     <>
-      <div className='flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/30'>
-        <span className='text-xs text-amber-400'>
-          {totalPendingChanges > 0 && `${totalPendingChanges} edit${totalPendingChanges > 1 ? 's' : ''}`}
-          {totalPendingChanges > 0 && (totalPendingInserts > 0 || totalPendingDeletes > 0) && ', '}
-          {totalPendingInserts > 0 && `${totalPendingInserts} new row${totalPendingInserts > 1 ? 's' : ''}`}
-          {totalPendingInserts > 0 && totalPendingDeletes > 0 && ', '}
-          {totalPendingDeletes > 0 && (
-            <span className='text-red-400'>
-              {totalPendingDeletes} delete{totalPendingDeletes > 1 ? 's' : ''}
-            </span>
-          )}
-          {affectedTables.length > 1 && (
-            <span className='text-muted-foreground ml-1'>
-              in {affectedTables.length} tables ({affectedTables.join(', ')})
-            </span>
-          )}
-          {affectedTables.length === 1 && <span className='text-muted-foreground ml-1'>in {affectedTables[0]}</span>}
-        </span>
-      </div>
-
       {/* SQL Preview Dialog */}
       <Dialog open={showSqlPreview} onOpenChange={setShowSqlPreview}>
         <DialogContent className='max-w-5xl'>

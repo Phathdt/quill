@@ -13,7 +13,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useExecuteQuery } from '@/hooks/useExecuteQuery'
 import { useInlineEditing } from '@/hooks/useInlineEditing'
 import { useTableFilter } from '@/hooks/useTableFilter'
-import { deleteRows, getPrimaryKey, insertRow } from '@/lib/tauri'
+import { insertRow } from '@/lib/tauri'
 import { toast } from '@/lib/toast'
 import { useWorkspaceManagerStore } from '@/stores/workspace'
 import type { Column } from '@/types/database'
@@ -23,7 +23,6 @@ import { AlertCircle, FileText, Loader2 } from 'lucide-react'
 import { CellValue } from './cell-value'
 import { ContextMenu } from './ContextMenu'
 import { DataGridHeader } from './data-grid-header'
-import { DeleteConfirmDialog } from './DeleteConfirmDialog'
 import { EditingToolbar } from './EditingToolbar'
 import { GridToolbar } from './GridToolbar'
 import { NewRowForm } from './NewRowForm'
@@ -80,7 +79,6 @@ export function DataGrid() {
 
   // Row management dialogs
   const [showNewRowForm, setShowNewRowForm] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Inline editing hook
   const { editingState, startEditing, commitCellEdit, cancelEditing, savePendingChanges } = useInlineEditing()
@@ -338,36 +336,11 @@ export function DataGrid() {
     }
   }
 
-  // Delete selected rows handler
-  const handleDeleteSelected = async () => {
-    if (!activeWorkspace || !activeTab?.tableName || !result) return
-
-    try {
-      const pkColumns = await getPrimaryKey(activeWorkspace.id, activeTab.tableName)
-      if (pkColumns.length === 0) {
-        toast.error('Cannot delete: No primary key found')
-        return
-      }
-
-      const rowsToDelete = Array.from(selectedRows).map((rowIndex) => {
-        const row = result.rows[rowIndex]
-        return pkColumns.map((pkCol) => {
-          const colIndex = result.columns.findIndex((c) => c.name === pkCol)
-          return { column: pkCol, value: row[colIndex] }
-        })
-      })
-
-      await deleteRows(activeWorkspace.id, activeTab.tableName, rowsToDelete)
-
-      const remainingRows = result.rows.filter((_, idx) => !selectedRows.has(idx))
-      setTabResult(activeWorkspace.id, activeTab.id, { ...result, rows: remainingRows })
-
-      setSelectedRows(new Set())
-      toast.success(`Deleted ${rowsToDelete.length} row(s)`)
-    } catch (e) {
-      toast.error(`Delete failed: ${e}`)
-      throw e
-    }
+  // Mark selected rows as pending delete
+  const handleDeleteSelected = () => {
+    if (!activeWorkspace || !activeTab || selectedRows.size === 0) return
+    addPendingDeletes(activeWorkspace.id, activeTab.id, Array.from(selectedRows))
+    setSelectedRows(new Set())
   }
 
   // Context menu handler
@@ -473,7 +446,7 @@ export function DataGrid() {
         onApplyFilters={applyFilters}
         onRefresh={applyFilters}
         onAddRow={isTableMode ? () => setShowNewRowForm(true) : undefined}
-        onDeleteSelected={isTableMode ? () => setShowDeleteConfirm(true) : undefined}
+        onDeleteSelected={isTableMode ? handleDeleteSelected : undefined}
         selectedRowCount={selectedRows.size}
       />
 
@@ -495,16 +468,6 @@ export function DataGrid() {
         <NewRowForm columns={result.columns} onSubmit={handleInsertRow} onCancel={() => setShowNewRowForm(false)} />
       )}
 
-      {/* Delete Confirm Dialog */}
-      {showDeleteConfirm && activeTab?.tableName && (
-        <DeleteConfirmDialog
-          rowCount={selectedRows.size}
-          tableName={activeTab.tableName}
-          isOpen={showDeleteConfirm}
-          onConfirm={handleDeleteSelected}
-          onCancel={() => setShowDeleteConfirm(false)}
-        />
-      )}
     </div>
   )
 }

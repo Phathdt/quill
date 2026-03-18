@@ -65,7 +65,7 @@ export function VirtualRow({
     const base = 'flex border-b border-border hover:bg-accent/50 transition-colors absolute left-0 cursor-pointer'
 
     if (isPendingDelete) {
-      return `${base} bg-red-500/20 border-l-2 border-l-red-500 line-through opacity-60`
+      return `${base} bg-red-500/20 border-l-2 border-l-red-500`
     }
     if (isPendingNewRow) {
       return `${base} bg-emerald-500/10 border-l-2 border-l-emerald-500`

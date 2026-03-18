@@ -12,6 +12,7 @@ export function WorkspaceContent() {
   const activeWorkspace = useWorkspaceManagerStore((s) => s.getActiveWorkspace())
   const activeTab = useWorkspaceManagerStore((s) => s.getActiveTab())
   const createTab = useWorkspaceManagerStore((s) => s.createTab)
+  const sqlBarOpen = useUiStore((s) => s.sqlBarOpen)
 
   // Handler for creating new tab from empty state
   const handleCreateTab = () => {
@@ -24,8 +25,6 @@ export function WorkspaceContent() {
   if (!activeWorkspace?.isConnected || !activeTab) {
     return <EmptyState onCreateTab={handleCreateTab} />
   }
-
-  const sqlBarOpen = useUiStore((s) => s.sqlBarOpen)
 
   // Table mode hides the SQL editor
   const isTableMode = activeTab?.type === 'table'
